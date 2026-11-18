@@ -287,16 +287,28 @@ async function fetchExamples() {
     const safe = (p) => typeof p === 'string' && p.split('/').every((s) => /^[\p{L}\p{N}._ \-、，（）·]+$/u.test(s) && s !== '.' && s !== '..');
     return files
       .filter((f) => safe(f.path))
-      .map((f) => addFile(`${EXAMPLES_ROOT}/${f.path}`, Number(f.size) || 0, now, async () => {
-        const r = await fetch(`./examples/${f.path.split('/').map(encodeURIComponent).join('/')}`);
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.blob();
-      }, { example: true }));
+      .map((f) => {
+        const url = `./examples/${f.path.split('/').map(encodeURIComponent).join('/')}`;
+        let pending = null; // 同一文件的并发请求（预取 + 点击）只发一次
+        return addFile(`${EXAMPLES_ROOT}/${f.path}`, Number(f.size) || 0, now, () => {
+          pending ||= fetch(url).then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.blob();
+          }).catch((err) => { pending = null; throw err; });
+          return pending;
+        }, { example: true });
+      });
   } catch (err) {
     console.warn('示例加载失败', err);
     toast('示例加载失败');
     return [];
   }
+}
+
+/** 预取：只对较小的示例文件，结果缓存在 getBlob 内 */
+function prefetch(f) {
+  if (f.bytes || f.size > 2 * 1024 * 1024) return;
+  f.getBlob().catch(() => {});
 }
 
 async function afterAdd(added, { expand = true, quiet = false } = {}) {
@@ -457,6 +469,8 @@ function renderTree() {
       row.append(ico, label, x);
       row.addEventListener('click', () => openFile(f.id));
       row.addEventListener('keydown', (e) => { if (e.key === 'Enter') openFile(f.id); });
+      // 示例文件在鼠标悬停时就开始下载，点下去时多半已经到了
+      if (f.example) row.addEventListener('pointerenter', () => prefetch(f), { once: true });
       parent.appendChild(row);
     }
   };
@@ -559,7 +573,7 @@ async function openFile(id, opts = {}) {
   state.activeId = id;
   state.selLines = null;
   $$('.tree-row.file').forEach((r) => r.classList.toggle('active', Number(r.dataset.id) === id));
-  revealInTree(file);
+  revealInTree(file, { scroll: false });
   closeFind();
 
   const kind = viewKind(file.path);
@@ -604,6 +618,8 @@ async function openFile(id, opts = {}) {
   if (token !== openToken) return;
   if (opts.line && cur.mode === 'code') jumpToLine(opts.line);
   syncRoute();
+  // 新内容渲染完后再把侧边栏滚到当前文件（此时布局已经算好，不会额外卡顿）
+  requestAnimationFrame(() => { if (state.activeId === id) revealInTree(file, { expand: false }); });
 }
 
 function autoDetect(text) {
@@ -1375,16 +1391,26 @@ async function restoreRoute(r) {
   }
 }
 
-/** 展开文件所在目录并滚动到可见 */
-function revealInTree(file) {
-  const parts = file.path.split('/');
-  let changed = state.closedGroups.delete(file.example ? 'example' : 'mine');
-  for (let i = 1; i < parts.length; i++) {
-    const dir = parts.slice(0, i).join('/');
-    if (!state.openDirs.has(dir)) { state.openDirs.add(dir); changed = true; }
+/** 展开文件所在目录（expand），并把侧边栏滚到能看见它（scroll） */
+function revealInTree(file, { expand = true, scroll = true } = {}) {
+  if (expand) {
+    const parts = file.path.split('/');
+    let changed = state.closedGroups.delete(file.example ? 'example' : 'mine');
+    for (let i = 1; i < parts.length; i++) {
+      const dir = parts.slice(0, i).join('/');
+      if (!state.openDirs.has(dir)) { state.openDirs.add(dir); changed = true; }
+    }
+    if (changed) renderTree();
   }
-  if (changed) renderTree();
-  document.querySelector(`.tree-row.file[data-id="${file.id}"]`)?.scrollIntoView({ block: 'nearest' });
+  if (!scroll) return;
+  // 只在侧边栏内滚动、且只在看不到时才滚：scrollIntoView 会让整页（包括右侧很长的代码表格）同步重排，切换文件时要卡几百毫秒
+  const row = document.querySelector(`.tree-row.file[data-id="${file.id}"]`);
+  const tree = $('#tree');
+  if (!row || !tree) return;
+  const r = row.getBoundingClientRect();
+  const t = tree.getBoundingClientRect();
+  if (r.top < t.top) tree.scrollTop -= t.top - r.top + 8;
+  else if (r.bottom > t.bottom) tree.scrollTop += r.bottom - t.bottom + 8;
 }
 
 /* ============================== 查找 ============================== */
