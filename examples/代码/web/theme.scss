@@ -1,0 +1,36 @@
+@use 'sass:math';
+
+$breakpoints: (sm: 640px, md: 768px, lg: 1024px);
+$primary: #6750a4;
+
+@mixin respond($name) {
+  @media (min-width: map-get($breakpoints, $name)) {
+    @content;
+  }
+}
+
+@function rem($px, $base: 16px) {
+  @return math.div($px, $base) * 1rem;
+}
+
+.button {
+  padding: rem(8px) rem(16px);
+  background: $primary;
+  color: white;
+  border-radius: rem(20px);
+
+  &:hover { background: darken($primary, 8%); }
+  &--outline {
+    background: transparent;
+    border: 1px solid $primary;
+    color: $primary;
+  }
+
+  @include respond(md) {
+    padding: rem(10px) rem(24px);
+  }
+}
+
+@each $name, $size in (small: 12px, normal: 14px, large: 18px) {
+  .text-#{$name} { font-size: $size; }
+}

@@ -1,0 +1,22 @@
+### 登录获取 token
+POST https://api.example.com/v1/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "demo",
+  "password": "******"
+}
+
+### 查询文章列表
+GET https://api.example.com/v1/posts?tag=go&page=1 HTTP/1.1
+Authorization: Bearer {{token}}
+Accept-Language: zh-CN
+
+### 返回示例
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Cache-Control: no-store
+X-Request-Id: 7f3c2a9e
+
+{"total": 2, "items": [{"id": 1, "title": "Go 并发模式"}, {"id": 2, "title": "泛型入门"}]}

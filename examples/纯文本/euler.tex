@@ -1,0 +1,30 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, amssymb}
+\usepackage[UTF8]{ctex}
+
+\title{欧拉公式简介}
+\author{示例}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{定义}
+对任意实数 $x$，有
+\begin{equation}
+  e^{ix} = \cos x + i \sin x .
+  \label{eq:euler}
+\end{equation}
+
+\section{推论}
+令 $x = \pi$，由式~\eqref{eq:euler} 得到
+\[
+  e^{i\pi} + 1 = 0 .
+\]
+
+\begin{itemize}
+  \item 联系了 $e$、$i$、$\pi$、$1$、$0$ 五个常数；
+  \item 可用泰勒级数 $\displaystyle e^x = \sum_{n=0}^{\infty} \frac{x^n}{n!}$ 证明。
+\end{itemize}
+
+\end{document}

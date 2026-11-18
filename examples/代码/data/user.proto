@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "example.com/gen/user/v1;userv1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+// 用户服务
+service UserService {
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+  rpc WatchUsers(WatchUsersRequest) returns (stream UserEvent);
+}
+
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  Status status = 4;
+  repeated string tags = 5;
+  map<string, string> labels = 6;
+  google.protobuf.Timestamp created_at = 7;
+
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_ACTIVE = 1;
+    STATUS_DISABLED = 2;
+  }
+}
+
+message GetUserRequest { string id = 1; }
+
+message ListUsersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+}
+
+message UpdateUserRequest {
+  User user = 1;
+  google.protobuf.FieldMask update_mask = 2;
+}
+
+message WatchUsersRequest {}
+
+message UserEvent {
+  oneof event {
+    User created = 1;
+    User updated = 2;
+    string deleted_id = 3;
+  }
+}

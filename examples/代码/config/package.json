@@ -1,0 +1,25 @@
+{
+  "name": "demo-web",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest run --coverage",
+    "lint": "eslint . --max-warnings 0"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.9.0",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.0"
+  },
+  "engines": { "node": ">=20" },
+  "browserslist": ["> 0.5%", "last 2 versions", "not dead"],
+  "features": { "darkMode": true, "maxUploadMB": 20, "betaUsers": null }
+}

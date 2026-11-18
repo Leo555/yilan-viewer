@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>待办清单</title>
+  <style>
+    body { font: 15px/1.6 system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; color: #1f2328; }
+    h1 { font-size: 22px; }
+    form { display: flex; gap: 8px; }
+    input { flex: 1; padding: 6px 10px; border: 1px solid #d0d7de; border-radius: 6px; }
+    button { padding: 6px 14px; border: 0; border-radius: 6px; background: #0969da; color: #fff; }
+    li { padding: 6px 0; border-bottom: 1px solid #eee; }
+    li.done { color: #8c959f; text-decoration: line-through; }
+  </style>
+</head>
+<body>
+  <h1>今日待办</h1>
+  <form>
+    <input name="title" placeholder="要做点什么？" required />
+    <button type="submit">添加</button>
+  </form>
+  <ul>
+    <li class="done">晨跑 5 公里</li>
+    <li>阅读《设计模式》第三章</li>
+    <li>整理本周周报</li>
+  </ul>
+  <!-- 预览模式下脚本不会执行 -->
+</body>
+</html>

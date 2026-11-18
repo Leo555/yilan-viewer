@@ -1,0 +1,68 @@
+"""
+博客系统 API
+"""
+scalar DateTime
+
+enum Role {
+  READER
+  AUTHOR
+  ADMIN
+}
+
+interface Node {
+  id: ID!
+}
+
+type User implements Node {
+  id: ID!
+  name: String!
+  role: Role!
+  posts(first: Int = 10, after: String): PostConnection!
+}
+
+type Post implements Node {
+  id: ID!
+  title: String!
+  body: String!
+  tags: [String!]!
+  author: User!
+  publishedAt: DateTime
+}
+
+type PostConnection {
+  edges: [PostEdge!]!
+  pageInfo: PageInfo!
+}
+
+type PostEdge {
+  cursor: String!
+  node: Post!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+input CreatePostInput {
+  title: String!
+  body: String!
+  tags: [String!] = []
+}
+
+type Query {
+  node(id: ID!): Node
+  posts(tag: String, first: Int = 20): PostConnection!
+}
+
+type Mutation {
+  createPost(input: CreatePostInput!): Post! @auth(requires: AUTHOR)
+}
+
+query RecentPosts($tag: String) {
+  posts(tag: $tag, first: 5) {
+    edges {
+      node { id title author { name } publishedAt }
+    }
+  }
+}

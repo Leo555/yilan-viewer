@@ -1,0 +1,25 @@
+diff --git a/src/cart.js b/src/cart.js
+index 3b18e51..a9c4f02 100644
+--- a/src/cart.js
++++ b/src/cart.js
+@@ -12,14 +12,17 @@ export function addItem(cart, item) {
+ }
+ 
+ export function total(cart) {
+-  let sum = 0;
+-  for (const item of cart.items) {
+-    sum += item.price * item.qty;
+-  }
+-  return sum;
++  const sum = cart.items.reduce((acc, { price, qty }) => acc + price * qty, 0);
++  // 避免浮点误差，统一保留两位小数
++  return Math.round(sum * 100) / 100;
+ }
+ 
+-export function clear(cart) {
+-  cart.items = [];
++export function clear(cart, { keepCoupons = false } = {}) {
++  cart.items.length = 0;
++  if (!keepCoupons) cart.coupons = [];
++  return cart;
+ }

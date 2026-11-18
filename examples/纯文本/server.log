@@ -1,0 +1,13 @@
+2026-11-18 09:00:01.102 INFO  [main] c.e.app.Application      : Starting Application v1.2.0 using Java 21.0.5
+2026-11-18 09:00:02.417 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer : Tomcat started on port 8080 (http)
+2026-11-18 09:00:02.430 INFO  [main] c.e.app.Application      : Started Application in 1.62 seconds
+2026-11-18 09:05:13.881 DEBUG [http-nio-8080-exec-1] c.e.app.web.OrderController : GET /api/orders?page=1 user=1024
+2026-11-18 09:05:14.006 WARN  [http-nio-8080-exec-2] c.e.app.service.PayService : 支付回调重复，orderId=887421 已忽略
+2026-11-18 09:07:42.519 ERROR [http-nio-8080-exec-5] c.e.app.web.GlobalHandler  : 订单查询失败 orderId=887533
+java.lang.IllegalStateException: Connection pool exhausted (active=20, idle=0)
+	at com.example.app.db.Pool.acquire(Pool.java:88)
+	at com.example.app.repo.OrderRepo.find(OrderRepo.java:42)
+	at com.example.app.service.OrderService.detail(OrderService.java:57)
+	... 42 common frames omitted
+2026-11-18 09:07:45.003 INFO  [scheduler-1] c.e.app.job.CleanupJob   : 清理过期会话 132 条，耗时 38ms
+2026-11-18 09:10:00.000 FATAL [main] c.e.app.Application      : Out of memory, shutting down

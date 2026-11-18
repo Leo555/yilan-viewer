@@ -1,0 +1,270 @@
+{
+  "order": [
+    "文档",
+    "代码",
+    "纯文本",
+    "图片、视频"
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "size": 1167
+    },
+    {
+      "path": "代码/backend/crawler.py",
+      "size": 1673
+    },
+    {
+      "path": "代码/backend/InventoryReport.cs",
+      "size": 1327
+    },
+    {
+      "path": "代码/backend/ledger.rb",
+      "size": 1270
+    },
+    {
+      "path": "代码/backend/main.go",
+      "size": 1723
+    },
+    {
+      "path": "代码/backend/OrderService.java",
+      "size": 1868
+    },
+    {
+      "path": "代码/backend/PostController.php",
+      "size": 1174
+    },
+    {
+      "path": "代码/backend/server.mjs",
+      "size": 1183
+    },
+    {
+      "path": "代码/backend/Weather.kt",
+      "size": 1259
+    },
+    {
+      "path": "代码/backend/wordcount.rs",
+      "size": 1586
+    },
+    {
+      "path": "代码/config/app.env",
+      "size": 227
+    },
+    {
+      "path": "代码/config/Cargo.toml",
+      "size": 440
+    },
+    {
+      "path": "代码/config/docker-compose.yml",
+      "size": 915
+    },
+    {
+      "path": "代码/config/Dockerfile",
+      "size": 559
+    },
+    {
+      "path": "代码/config/Makefile",
+      "size": 759
+    },
+    {
+      "path": "代码/config/nginx.conf",
+      "size": 1201
+    },
+    {
+      "path": "代码/config/package.json",
+      "size": 622
+    },
+    {
+      "path": "代码/config/pom.xml",
+      "size": 1204
+    },
+    {
+      "path": "代码/config/settings.ini",
+      "size": 278
+    },
+    {
+      "path": "代码/data/api.http",
+      "size": 538
+    },
+    {
+      "path": "代码/data/schema.graphql",
+      "size": 962
+    },
+    {
+      "path": "代码/data/schema.sql",
+      "size": 1546
+    },
+    {
+      "path": "代码/data/user.proto",
+      "size": 1188
+    },
+    {
+      "path": "代码/functional/bank.clj",
+      "size": 1143
+    },
+    {
+      "path": "代码/functional/bst.ml",
+      "size": 768
+    },
+    {
+      "path": "代码/functional/Main.hs",
+      "size": 1016
+    },
+    {
+      "path": "代码/functional/room.ex",
+      "size": 1017
+    },
+    {
+      "path": "代码/functional/Shapes.scala",
+      "size": 1052
+    },
+    {
+      "path": "代码/native/counter.dart",
+      "size": 1222
+    },
+    {
+      "path": "代码/native/DownloadTask.m",
+      "size": 1476
+    },
+    {
+      "path": "代码/native/HabitListView.swift",
+      "size": 1445
+    },
+    {
+      "path": "代码/native/lru_cache.cpp",
+      "size": 1858
+    },
+    {
+      "path": "代码/native/ring.c",
+      "size": 1064
+    },
+    {
+      "path": "代码/scripts/backup.sh",
+      "size": 1077
+    },
+    {
+      "path": "代码/scripts/clean-logs.bat",
+      "size": 524
+    },
+    {
+      "path": "代码/scripts/Get-LargeFiles.ps1",
+      "size": 1233
+    },
+    {
+      "path": "代码/scripts/init.lua",
+      "size": 1202
+    },
+    {
+      "path": "代码/scripts/iris.R",
+      "size": 756
+    },
+    {
+      "path": "代码/scripts/logstat.pl",
+      "size": 751
+    },
+    {
+      "path": "代码/web/app.js",
+      "size": 1598
+    },
+    {
+      "path": "代码/web/Counter.tsx",
+      "size": 1035
+    },
+    {
+      "path": "代码/web/index.html",
+      "size": 1056
+    },
+    {
+      "path": "代码/web/store.ts",
+      "size": 1348
+    },
+    {
+      "path": "代码/web/styles.css",
+      "size": 927
+    },
+    {
+      "path": "代码/web/theme.scss",
+      "size": 695
+    },
+    {
+      "path": "代码/web/TodoList.vue",
+      "size": 839
+    },
+    {
+      "path": "图片、视频/icon.bmp",
+      "size": 16522
+    },
+    {
+      "path": "图片、视频/icon.ico",
+      "size": 17470
+    },
+    {
+      "path": "图片、视频/loading.gif",
+      "size": 35009
+    },
+    {
+      "path": "图片、视频/logo.svg",
+      "size": 501
+    },
+    {
+      "path": "图片、视频/sunrise.mp4",
+      "size": 143477
+    },
+    {
+      "path": "图片、视频/sunset.jpg",
+      "size": 50280
+    },
+    {
+      "path": "图片、视频/sunset.png",
+      "size": 143614
+    },
+    {
+      "path": "文档/novel.epub",
+      "size": 3057
+    },
+    {
+      "path": "文档/report.docx",
+      "size": 2461
+    },
+    {
+      "path": "文档/roadmap.pptx",
+      "size": 3172
+    },
+    {
+      "path": "文档/sales.xlsx",
+      "size": 19435
+    },
+    {
+      "path": "文档/sample.pdf",
+      "size": 2044
+    },
+    {
+      "path": "纯文本/books.tsv",
+      "size": 210
+    },
+    {
+      "path": "纯文本/euler.tex",
+      "size": 594
+    },
+    {
+      "path": "纯文本/intro.srt",
+      "size": 262
+    },
+    {
+      "path": "纯文本/poem.txt",
+      "size": 268
+    },
+    {
+      "path": "纯文本/refactor.diff",
+      "size": 680
+    },
+    {
+      "path": "纯文本/server.log",
+      "size": 1170
+    },
+    {
+      "path": "纯文本/weather.csv",
+      "size": 349
+    }
+  ]
+}
