@@ -38,6 +38,7 @@ const state = {
   settings: loadSettings(),
   openDirs: new Set(),
   dirOrder: new Map(), // 目录路径 → 子目录的显示顺序
+  closedGroups: new Set(), // 侧边栏中收起的分组（mine / example）
   selLines: null, // [起始行, 结束行]
   find: { query: '', caseSensitive: false, regex: false, marks: [], index: -1 },
   langLoads: new Map(),
@@ -114,12 +115,15 @@ function applyFontSize() {
   document.documentElement.style.setProperty('--code-size', `${state.settings.size}px`);
 }
 function changeFontSize(dir) {
+  // PDF / EPUB 有自己的缩放；其余（代码、Markdown、Word、表格、幻灯片）共用字号设置
   if (state.current?.doc && state.docCtl?.zoom) { state.docCtl.zoom(dir); return; }
   const i = SIZES.indexOf(state.settings.size);
   state.settings.size = SIZES[clamp(i + dir, 0, SIZES.length - 1)];
   saveSettings();
   applyFontSize();
-  toast(`字号 ${state.settings.size}px`, 900);
+  const cur = state.current;
+  const reading = cur && ((cur.mode === 'preview' && cur.kind === 'markdown') || ['docx', 'pptx'].includes(cur.kind));
+  toast(reading ? `字号 ${state.settings.size + (cur.kind === 'pptx' ? 1 : 3)}px` : `字号 ${state.settings.size}px`, 900);
 }
 
 /* ============================== 读取文件 ============================== */
@@ -153,14 +157,17 @@ function decode(bytes, encoding) {
 }
 
 /* ============================== 添加文件 ============================== */
-function addFile(path, size, mtime, getBlob) {
+/** example: 内置示例。示例和用户文件分两组显示，路径相同也互不覆盖 */
+function addFile(path, size, mtime, getBlob, { example = false } = {}) {
   path = path.replace(/^\/+/, '');
-  const existing = state.files.find((f) => f.path === path);
+  // 用户自己的顶层文件夹恰好叫「示例」时改个名，免得链接被当成内置示例
+  if (!example && (path === EXAMPLES_ROOT || path.startsWith(`${EXAMPLES_ROOT}/`))) path = `${EXAMPLES_ROOT} (1)${path.slice(EXAMPLES_ROOT.length)}`;
+  const existing = state.files.find((f) => f.path === path && !!f.example === example);
   if (existing) {
     Object.assign(existing, { size, mtime, getBlob, bytes: undefined });
     return existing;
   }
-  const f = { id: nextId++, path, size, mtime, getBlob };
+  const f = { id: nextId++, path, size, mtime, getBlob, example };
   state.files.push(f);
   return f;
 }
@@ -258,11 +265,15 @@ function addText(text, name) {
 const EXAMPLES_ROOT = '示例';
 let examplesLoading = null;
 async function loadExamples({ open = true } = {}) {
-  examplesLoading ||= fetchExamples().finally(() => { examplesLoading = null; });
+  if (!examplesLoading) {
+    examplesLoading = fetchExamples().finally(() => { examplesLoading = null; });
+    renderTree(); // 显示「正在加载示例…」
+  }
   const added = await examplesLoading;
+  if (open) state.closedGroups.delete('example');
   // 示例目录默认折叠，只展开打开的 README 所在的那一层
-  if (open && added.length) await afterAdd(added, { expand: false });
-  else if (added.length) { renderTree(); }
+  if (open && added.length) await afterAdd(added, { expand: false, quiet: true });
+  else renderTree();
 }
 
 async function fetchExamples() {
@@ -280,7 +291,7 @@ async function fetchExamples() {
         const r = await fetch(`./examples/${f.path.split('/').map(encodeURIComponent).join('/')}`);
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.blob();
-      }));
+      }, { example: true }));
   } catch (err) {
     console.warn('示例加载失败', err);
     toast('示例加载失败');
@@ -288,7 +299,7 @@ async function fetchExamples() {
   }
 }
 
-async function afterAdd(added, { expand = true } = {}) {
+async function afterAdd(added, { expand = true, quiet = false } = {}) {
   if (!added.length) return;
   for (const f of expand ? added : []) {
     const parts = f.path.split('/');
@@ -301,7 +312,7 @@ async function afterAdd(added, { expand = true } = {}) {
   // 一次添加多个文件时优先打开 README / index 等；只添加一个就打开它
   const first = added.length === 1 ? added[0] : pickFirst(added);
   if (first) await openFile(first.id);
-  if (added.length > 1) toast(`已添加 ${added.length} 个文件`);
+  if (added.length > 1 && !quiet) toast(`已添加 ${added.length} 个文件`);
 }
 
 function pickFirst(files) {
@@ -349,16 +360,40 @@ function refreshTreeBadge(file) {
   badge.style.color = fg || '';
 }
 
+/** 侧边栏分组：用户自己打开的文件在上，内置示例在下 */
+const GROUPS = [
+  { id: 'mine', title: '我的文件', match: (f) => !f.example },
+  { id: 'example', title: '示例', match: (f) => !!f.example },
+];
+
+function groupHeader(g, count, open, onToggle) {
+  const head = document.createElement('div');
+  head.className = `tree-group${open ? ' open' : ''}`;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'tree-group-toggle';
+  btn.innerHTML = '<svg class="chev" viewBox="0 0 12 12" width="12" height="12"><path d="M4.5 2.5 8 6l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="tree-group-title"></span><span class="tree-group-count"></span>';
+  btn.querySelector('.tree-group-title').textContent = g.title;
+  btn.querySelector('.tree-group-count').textContent = String(count);
+  btn.setAttribute('aria-expanded', String(open));
+  btn.addEventListener('click', onToggle);
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'x';
+  x.title = g.id === 'example' ? '移除全部示例' : '移除我的全部文件';
+  x.textContent = '×';
+  x.addEventListener('click', () => removeGroup(g.id));
+  head.append(btn, x);
+  return head;
+}
+
 function renderTree() {
   const tree = $('#tree');
   const q = $('#filter').value.trim().toLowerCase();
   const files = q ? state.files.filter((f) => f.path.toLowerCase().includes(q)) : state.files;
-  $('#side-empty').hidden = state.files.length > 0;
-  $('#side-empty').textContent = '还没有文件';
-  if (state.files.length && !files.length) {
-    $('#side-empty').hidden = false;
-    $('#side-empty').textContent = '没有匹配的文件';
-  }
+  // 两个分组始终显示，空状态在分组内提示；只有筛选无结果时才用底部提示
+  $('#side-empty').hidden = !(q && state.files.length && !files.length);
+  $('#side-empty').textContent = '没有匹配的文件';
   const frag = document.createDocumentFragment();
   const walk = (node, depth, parent) => {
     // 有指定顺序的目录（如示例的四个分类）按指定顺序，其余按名称
@@ -425,8 +460,70 @@ function renderTree() {
       parent.appendChild(row);
     }
   };
-  walk(buildTree(files), 0, frag);
+  for (const g of GROUPS) {
+    const list = files.filter(g.match);
+    if (q && !list.length) continue; // 筛选时隐藏没有匹配的分组
+    const open = q ? true : !state.closedGroups.has(g.id);
+    const body = document.createElement('div');
+    body.className = `tree-children${open ? ' open' : ''}`;
+    const head = groupHeader(g, list.length, open, () => {
+      const nowOpen = !body.classList.contains('open');
+      body.classList.toggle('open', nowOpen);
+      head.classList.toggle('open', nowOpen);
+      head.firstElementChild.setAttribute('aria-expanded', String(nowOpen));
+      if (nowOpen) state.closedGroups.delete(g.id); else state.closedGroups.add(g.id);
+      // 第一次展开示例时才去拉清单（启动时已在后台预加载，一般已经就绪）
+      if (nowOpen && g.id === 'example' && !list.length) loadExamples({ open: false });
+    });
+    frag.append(head, body);
+    if (!list.length) {
+      body.appendChild(groupEmpty(g.id));
+      continue;
+    }
+    const root = buildTree(list);
+    // 示例都在「示例/」下，分组标题已经说明了，直接展示它的子目录
+    const exRoot = g.id === 'example' ? root.dirs.get(EXAMPLES_ROOT) : null;
+    if (exRoot && root.dirs.size === 1 && !root.files.length) walk(exRoot, 0, body);
+    else walk(root, 0, body);
+  }
   tree.replaceChildren(frag);
+}
+
+/** 分组为空时的提示 */
+function groupEmpty(id) {
+  const box = document.createElement('div');
+  box.className = 'tree-empty';
+  const link = (text, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'link-btn';
+    b.textContent = text;
+    b.addEventListener('click', fn);
+    return b;
+  };
+  if (id === 'mine') {
+    box.append('拖入文件，或 ', link('打开文件', () => $('#file-input').click()), ' / ', link('粘贴', () => openPaste()));
+  } else if (examplesLoading) {
+    box.textContent = '正在加载示例…';
+  } else {
+    box.append(link('加载示例', () => loadExamples({ open: false })));
+  }
+  return box;
+}
+
+function removeGroup(id) {
+  const g = GROUPS.find((x) => x.id === id);
+  const removed = state.files.filter(g.match);
+  if (!removed.length) return;
+  const activeRemoved = removed.some((f) => f.id === state.activeId);
+  state.files = state.files.filter((f) => !g.match(f));
+  if (activeRemoved) {
+    openToken++; // 取消正在进行的打开
+    const next = state.files.find((f) => !f.example);
+    if (next) openFile(next.id); else showWelcome();
+  }
+  renderTree();
+  toast(`已移除 ${removed.length} 个${id === 'example' ? '示例' : '文件'}`);
 }
 
 function removeFile(id) {
@@ -441,11 +538,16 @@ function removeFile(id) {
 }
 
 function clearAll() {
-  if (!state.files.length) return;
-  state.files = [];
-  state.openDirs.clear();
-  showWelcome();
-  renderTree();
+  // 清空「我的文件」；示例只是一份清单，不占内存，保留在侧边栏
+  if (!state.files.some((f) => !f.example)) return;
+  removeGroup('mine');
+}
+
+/** 启动时在后台列出示例（只取清单，不下载文件内容），示例分组默认收起 */
+function preloadExamples() {
+  if (state.files.some((f) => f.example)) return;
+  state.closedGroups.add('example');
+  loadExamples({ open: false });
 }
 
 /* ============================== 打开文件 ============================== */
@@ -1245,10 +1347,13 @@ async function restoreRoute(r) {
     if (state.current) showWelcome();
     return;
   }
-  const find = () => state.files.find((f) => f.path === r.path)
-    || pickFirst(state.files.filter((f) => f.path.startsWith(`${r.path}/`)));
+  // 地址以「示例/」开头的只在示例里找，其余只在用户文件里找（两组路径可能重名）
+  const wantExample = r.path === EXAMPLES_ROOT || r.path.startsWith(`${EXAMPLES_ROOT}/`);
+  const pool = () => state.files.filter((f) => !!f.example === wantExample);
+  const find = () => pool().find((f) => f.path === r.path)
+    || pickFirst(pool().filter((f) => f.path.startsWith(`${r.path}/`)));
   let file = find();
-  if (!file && (r.path === EXAMPLES_ROOT || r.path.startsWith(`${EXAMPLES_ROOT}/`))) {
+  if (!file && wantExample) {
     await loadExamples({ open: false });
     file = find();
   }
@@ -1273,7 +1378,7 @@ async function restoreRoute(r) {
 /** 展开文件所在目录并滚动到可见 */
 function revealInTree(file) {
   const parts = file.path.split('/');
-  let changed = false;
+  let changed = state.closedGroups.delete(file.example ? 'example' : 'mine');
   for (let i = 1; i < parts.length; i++) {
     const dir = parts.slice(0, i).join('/');
     if (!state.openDirs.has(dir)) { state.openDirs.add(dir); changed = true; }
@@ -1664,7 +1769,8 @@ function boot() {
   bindEvents();
   renderTree();
   window.addEventListener('popstate', applyRoute);
-  applyRoute();
+  // 先恢复路由（示例链接会自己加载示例），再在后台列出示例
+  applyRoute().finally(preloadExamples);
 }
 
 boot();

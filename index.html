@@ -7,7 +7,7 @@
   <meta name="description" content="一览：在浏览器里直接预览 PDF、EPUB、Word、Excel、PPT、Markdown、代码、图片、音视频等文件。支持拖入文件夹和 zip，文件只在本机处理，不会上传。" />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#4f46e5" />
-  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
   <link id="hl-light" rel="stylesheet" href="./vendor/hljs/styles/github.min.css" />
   <link id="hl-dark" rel="stylesheet" href="./vendor/hljs/styles/github-dark.min.css" disabled />
   <link rel="stylesheet" href="./styles.css" />
@@ -21,9 +21,8 @@
   <!-- 侧边栏：文件列表 -->
   <aside id="sidebar" class="sidebar">
     <div class="side-head">
-      <a class="brand" href="#/" data-home title="回到首页">
-        <img src="./favicon.svg" width="22" height="22" alt="" />
-        <span>一览</span>
+      <a class="brand" href="#/" data-home title="回到首页" aria-label="一览 · 回到首页">
+        <img src="./favicon.svg" width="45" height="30" alt="一览" />
       </a>
       <div class="side-actions">
         <button id="btn-open" class="icon-btn" type="button" title="打开文件（⌘O）">
@@ -35,7 +34,7 @@
         <button id="btn-new" class="icon-btn" type="button" title="粘贴文本（⌘⇧V 或直接 ⌘V）">
           <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="5" y="3.5" width="10" height="13" rx="1.5"/><path d="M8 3.5V2.5h4v1M7.5 8h5M7.5 11h5M7.5 14h3"/></svg>
         </button>
-        <button id="btn-clear" class="icon-btn" type="button" title="清空列表">
+        <button id="btn-clear" class="icon-btn" type="button" title="清空我的文件">
           <svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 6h12M8 6V4h4v2M6 6l.7 10h6.6L14 6"/></svg>
         </button>
       </div>
@@ -55,7 +54,7 @@
         <svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><path d="M7.5 3.5v13"/></svg>
       </button>
       <a class="brand brand-mini" href="#/" data-home title="回到首页">
-        <img src="./favicon.svg" width="20" height="20" alt="" />
+        <img src="./favicon.svg" width="36" height="24" alt="一览" />
       </a>
       <div class="file-info">
         <div id="file-name" class="file-name"></div>
@@ -124,8 +123,8 @@
     <section id="viewer" class="viewer" tabindex="-1">
       <div id="welcome" class="welcome">
         <div class="welcome-card">
-          <img class="welcome-logo" src="./favicon.svg" width="72" height="72" alt="" />
-          <h1>一览</h1>
+          <img class="welcome-logo" src="./favicon.svg" width="132" height="88" alt="一览" />
+          <h1 class="sr-only">一览</h1>
           <p class="welcome-lead">在浏览器里直接打开任何文件，一眼看清内容。</p>
           <p>拖入文件、文件夹或 zip 压缩包，或者直接 <kbd>⌘V</kbd> 粘贴。</p>
           <div class="welcome-actions">

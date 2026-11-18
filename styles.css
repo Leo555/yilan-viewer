@@ -153,7 +153,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   letter-spacing: .02em;
 }
 .brand:hover { background: var(--hover); }
-.brand img { display: block; border-radius: 6px; }
+.brand img { display: block; }
 .brand-mini { display: none; margin-left: 0; padding: 4px; }
 .app.side-hidden .brand-mini { display: inline-flex; }
 .side-actions { display: flex; gap: 2px; }
@@ -224,6 +224,63 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tree-row .x:hover { background: var(--hover); color: var(--text); }
 .tree-children { display: none; }
 .tree-children.open { display: block; }
+
+/* 侧边栏分组：我的文件 / 示例 */
+.tree-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 10px 0 2px;
+  padding-right: 4px;
+}
+.tree-group:first-child { margin-top: 0; }
+.tree-group + .tree-children { margin-bottom: 4px; }
+.tree-group-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  cursor: pointer;
+  text-align: left;
+}
+.tree-group-toggle:hover { color: var(--text); background: var(--hover); }
+.tree-group .chev { flex-shrink: 0; transition: transform .15s; }
+.tree-group.open .chev { transform: rotate(90deg); }
+.tree-group-title { flex: 1; }
+.tree-group-count {
+  font-weight: 500;
+  font-size: 10.5px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--line-soft);
+  color: var(--muted);
+}
+.tree-group .x {
+  visibility: hidden;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.tree-group:hover .x { visibility: visible; }
+.tree-group .x:hover { background: var(--hover); color: var(--text); }
+.tree-empty { padding: 6px 12px 10px 26px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.link-btn { border: none; background: none; padding: 0; color: var(--accent); cursor: pointer; font-size: inherit; }
+.link-btn:hover { text-decoration: underline; }
 .badge {
   box-sizing: border-box;
   display: inline-flex;
@@ -316,7 +373,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   padding: 32px 20px;
 }
 .welcome-card { max-width: 560px; text-align: center; color: var(--muted); }
-.welcome-logo { display: block; margin: 0 auto; border-radius: 18px; box-shadow: 0 8px 24px rgba(79, 70, 229, .25); }
+.welcome-logo { display: block; margin: 0 auto 18px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .welcome h1 { color: var(--text); font-size: 28px; margin: 16px 0 6px; letter-spacing: .08em; }
 .welcome p { line-height: 1.7; margin: 0 0 18px; }
 .welcome .welcome-lead { color: var(--text); font-size: 15px; margin-bottom: 6px; }
@@ -370,7 +428,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
   font-size: 34px;
   cursor: pointer;
 }
-.epub-nav:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+.epub-nav:hover:not(:disabled) { color: var(--text); }
+.epub-nav:focus { outline: none; }
+.epub-nav:focus-visible { color: var(--text); outline: 2px solid var(--accent); outline-offset: -6px; border-radius: 6px; }
 .epub-nav:disabled { opacity: .3; cursor: default; }
 
 /* Word */
@@ -410,10 +470,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
   padding: 28px 36px 24px 56px;
+  font-size: calc(var(--code-size) + 1px);
   line-height: 1.7;
 }
 .slide-no { position: absolute; left: 16px; top: 28px; color: var(--gutter); font-size: 12px; font-variant-numeric: tabular-nums; }
-.slide h3 { margin: 0 0 10px; font-size: 18px; }
+.slide h3 { margin: 0 0 10px; font-size: 1.3em; }
 .slide p { margin: 0 0 6px; }
 .slide img { max-width: 100%; max-height: 360px; display: block; margin: 12px 0; border-radius: 4px; }
 
@@ -495,7 +556,8 @@ mark.fm.cur { background: var(--find-cur); outline: 1px solid var(--find-cur); }
   max-width: 900px;
   margin: 0 auto;
   padding: 32px 40px 80px;
-  font-size: 16px;
+  /* 阅读类内容（Markdown / Word / 幻灯片）的字号，跟随 A− / A+：代码 13px 时正文 16px */
+  font-size: calc(var(--code-size) + 3px);
   line-height: 1.65;
   overflow-wrap: break-word;
 }
@@ -531,7 +593,7 @@ mark.fm.cur { background: var(--find-cur); outline: 1px solid var(--find-cur); }
 .csv {
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 13px;
+  font-size: var(--code-size);
   font-variant-numeric: tabular-nums;
 }
 .csv th, .csv td {
