@@ -65,16 +65,41 @@
 ## 技术实现
 
 - 原生 HTML / CSS / ES Modules，不需要构建
-- 首屏只加载代码高亮相关的库；PDF、EPUB、Word、表格的渲染库在第一次打开对应文件时才加载（`docviewers.js`）
+- 首屏不阻塞加载任何第三方库：highlight.js 在浏览器空闲时预热，Markdown（marked + DOMPurify）、zip（JSZip）在用到时才加载；PDF、EPUB、Word、表格的渲染库在第一次打开对应文件时才加载
+- 源码视图每 200 行一块，用 CSS `content-visibility: auto` 跳过屏幕外内容的布局与绘制，20 万行的文件也能流畅滚动；后台高亮的 Worker 直接生成 HTML，主线程只负责插入
+- 读取过的文件字节按 LRU 缓存（上限约 96MB），切换文件时释放上一个视图的 Object URL
 - 依赖：[highlight.js](https://highlightjs.org/) 11.12.0、[marked](https://marked.js.org/) 18.2.1、[DOMPurify](https://github.com/cure53/DOMPurify) 3.4.18、[JSZip](https://stuk.github.io/jszip/) 3.10.1、[pdf.js](https://mozilla.github.io/pdf.js/) 6.5.438、[epub.js](https://github.com/futurepress/epub.js) 0.3.93、[mammoth](https://github.com/mwilliamson/mammoth.js) 1.13.0、[SheetJS](https://sheetjs.com/) 0.20.3
 - 第三方库从 npm 发布包复制到 `vendor/`，随站点部署，不依赖 CDN；PDF 的 CMap（中日韩字体映射）、标准字体和 wasm 解码器也一起放在本地
-- `languages.js` 是语言和文件类型的识别表，页面和 `scripts/vendor.mjs` 共用
+
+### 代码结构
+
+```
+index.html            页面骨架
+styles.css            样式
+src/
+  preboot.js          首帧前应用主题 / 字号 / 侧边栏宽度（避免闪烁）
+  main.js             入口：打开文件、渲染调度、工具栏、事件绑定
+  state.js            常量与全局状态、设置读写
+  util.js             DOM / 格式化 / 脚本加载 / Object URL 回收
+  libs.js             第三方库按需加载（highlight.js、marked、DOMPurify、JSZip）
+  languages.js        语言与文件类型识别表（页面和 scripts/vendor.mjs 共用）
+  detect.js           按内容识别语言
+  files.js            文件列表：添加（文件 / 文件夹 / zip / 粘贴 / 示例）、索引、读取与解码
+  tree.js             侧边栏文件树（事件委托）
+  find.js             页内查找
+  route.js            hash 路由
+  code-html.js        源码分块 HTML 生成（主线程与 Worker 共用）
+  highlight-worker.js 后台高亮 Worker
+  docviewers.js       PDF / EPUB / Word / 表格 / 演示文稿 / 音视频 / 字体
+  views/code.js       源码视图
+  views/preview.js    图片、Markdown、CSV、HTML / SVG、JSON 树
+```
 
 ### 升级依赖 / 增加语言
 
 ```bash
 npm install
-# 修改 package.json 中的版本或 languages.js 中的语言后：
+# 修改 package.json 中的版本或 src/languages.js 中的语言后：
 npm run vendor   # 重新生成 vendor/
 ```
 

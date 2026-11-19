@@ -15,7 +15,7 @@
       ]
     },
     {
-      "source": "/(app|languages|docviewers|highlight-worker)\\.js",
+      "source": "/src/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]

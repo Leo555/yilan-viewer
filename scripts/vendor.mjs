@@ -5,7 +5,7 @@
 import { copyFileSync, cpSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LANGS } from '../languages.js';
+import { LANGS } from '../src/languages.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HLJS = 'node_modules/@highlightjs/cdn-assets';

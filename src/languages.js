@@ -139,6 +139,9 @@ export function detectLang(path) {
 }
 
 export const IMAGE_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'ico']);
+const MD_EXT = new Set(['md', 'markdown', 'mdown', 'mkd', 'mdx']);
+const HTML_EXT = new Set(['html', 'htm', 'xhtml']);
+const JSON_EXT = new Set(['json', 'geojson', 'webmanifest', 'har', 'ipynb', 'map']);
 
 /** 文档 / 媒体类：不按文本读取，由专门的渲染器预览 */
 const DOC_EXT = {
@@ -153,18 +156,21 @@ const DOC_EXT = {
 };
 const docByExt = new Map(Object.entries(DOC_EXT).flatMap(([k, list]) => list.map((e) => [e, k])));
 export const DOC_KINDS = new Set(Object.keys(DOC_EXT));
+export const DOC_NAMES = {
+  pdf: 'PDF', epub: 'EPUB', docx: 'Word 文档', sheet: '电子表格', pptx: '演示文稿', audio: '音频', video: '视频', font: '字体',
+};
 
 /** 文件除了源码外还支持的预览方式 */
 export function viewKind(path) {
   const ext = extOf(path);
   if (IMAGE_EXT.has(ext)) return 'image';
   if (docByExt.has(ext)) return docByExt.get(ext);
-  if (['md', 'markdown', 'mdown', 'mkd', 'mdx'].includes(ext)) return 'markdown';
+  if (MD_EXT.has(ext)) return 'markdown';
   if (ext === 'csv') return 'csv';
   if (ext === 'tsv' || ext === 'tab') return 'tsv';
-  if (['html', 'htm', 'xhtml'].includes(ext)) return 'html';
+  if (HTML_EXT.has(ext)) return 'html';
   if (ext === 'svg') return 'svg';
-  if (['json', 'geojson', 'webmanifest', 'har', 'ipynb', 'map'].includes(ext)) return 'json';
+  if (JSON_EXT.has(ext)) return 'json';
   return 'code';
 }
 

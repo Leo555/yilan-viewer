@@ -15,39 +15,11 @@
  *   findAgain(previous) / findClose()
  *   searchable                      true 表示内容是普通 DOM，可直接用页面查找
  */
+import { el, loadScript, loadCss } from './util.js';
+import { loadPurify, loadJSZip } from './libs.js';
+
 const V = './vendor';
 const abs = (p) => new URL(p, location.href).href;
-
-function el(tag, cls, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text != null) e.textContent = text;
-  return e;
-}
-
-const scripts = new Map();
-function loadScript(src, globalName) {
-  if (globalName && globalThis[globalName]) return Promise.resolve();
-  if (!scripts.has(src)) {
-    scripts.set(src, new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.onload = resolve;
-      s.onerror = () => { scripts.delete(src); s.remove(); reject(new Error(`组件加载失败：${src}`)); };
-      document.head.appendChild(s);
-    }));
-  }
-  return scripts.get(src);
-}
-
-function loadCss(href) {
-  if (document.querySelector(`link[data-href="${href}"]`)) return;
-  const l = document.createElement('link');
-  l.rel = 'stylesheet';
-  l.href = href;
-  l.dataset.href = href;
-  document.head.appendChild(l);
-}
 
 const toArrayBuffer = (u8) => u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
 
@@ -55,10 +27,10 @@ const toArrayBuffer = (u8) => u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.
 let pdfMods = null;
 function loadPdfjs() {
   pdfMods ||= (async () => {
-    const lib = await import('./vendor/pdfjs/pdf.min.mjs');
+    loadCss(`${V}/pdfjs/pdf_viewer.css`); // 与脚本并行下载
+    const lib = await import('../vendor/pdfjs/pdf.min.mjs');
     lib.GlobalWorkerOptions.workerSrc = abs(`${V}/pdfjs/pdf.worker.min.mjs`);
-    const viewer = await import('./vendor/pdfjs/pdf_viewer.mjs'); // 依赖 pdf.min.mjs 设置的 globalThis.pdfjsLib
-    loadCss(`${V}/pdfjs/pdf_viewer.css`);
+    const viewer = await import('../vendor/pdfjs/pdf_viewer.mjs'); // 依赖 pdf.min.mjs 设置的 globalThis.pdfjsLib
     return { lib, viewer };
   })().catch((err) => { pdfMods = null; throw err; });
   return pdfMods;
@@ -192,6 +164,7 @@ const EPUB_THEMES = {
 };
 
 async function renderEpub(host, src, ctx) {
+  await loadJSZip(); // epub.js 依赖全局 JSZip
   await loadScript(`${V}/epubjs/epub.min.js`, 'ePub');
   const wrap = el('div', 'epub');
   const bar = el('div', 'epub-bar');
@@ -295,9 +268,9 @@ async function renderEpub(host, src, ctx) {
 
 /* ============================== Word ============================== */
 async function renderDocx(host, src) {
-  await loadScript(`${V}/mammoth/mammoth.browser.min.js`, 'mammoth');
+  const [, DOMPurify] = await Promise.all([loadScript(`${V}/mammoth/mammoth.browser.min.js`, 'mammoth'), loadPurify()]);
   const result = await globalThis.mammoth.convertToHtml({ arrayBuffer: toArrayBuffer(src.bytes) });
-  const clean = globalThis.DOMPurify.sanitize(result.value, {
+  const clean = DOMPurify.sanitize(result.value, {
     USE_PROFILES: { html: true },
     FORBID_TAGS: ['style', 'form', 'input', 'button', 'textarea', 'select'],
   });
@@ -378,14 +351,29 @@ async function renderSheet(host, src, ctx) {
 
 /* ============================== 演示文稿 ============================== */
 async function renderPptx(host, src, ctx) {
-  const zip = await globalThis.JSZip.loadAsync(src.bytes);
+  const JSZip = await loadJSZip();
+  const zip = await JSZip.loadAsync(src.bytes);
   const slideNo = (p) => Number(/slide(\d+)\.xml$/.exec(p)?.[1] || 0);
   const slides = Object.keys(zip.files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p)).sort((a, b) => slideNo(a) - slideNo(b));
   const parser = new DOMParser();
   const urls = [];
-  const list = el('div', 'slides');
-  for (const [i, path] of slides.entries()) {
-    const xml = parser.parseFromString(await zip.file(path).async('string'), 'application/xml');
+  const imgCache = new Map(); // 多页共用的图片（如 logo）只解压一次
+  const imageUrl = (target) => {
+    if (!imgCache.has(target)) {
+      const type = /\.svg$/i.test(target) ? 'image/svg+xml' : '';
+      imgCache.set(target, zip.file(target).async('uint8array').then((data) => {
+        const url = URL.createObjectURL(new Blob([data], type ? { type } : {}));
+        urls.push(url);
+        return url;
+      }));
+    }
+    return imgCache.get(target);
+  };
+  // 各页并行解析，按页序拼装
+  const cards = await Promise.all(slides.map(async (path, i) => {
+    const rels = zip.file(`${path.replace('slides/', 'slides/_rels/')}.rels`);
+    const [xmlText, relText] = await Promise.all([zip.file(path).async('string'), rels?.async('string')]);
+    const xml = parser.parseFromString(xmlText, 'application/xml');
     const card = el('section', 'slide');
     card.appendChild(el('div', 'slide-no', String(i + 1)));
     const paras = [...xml.getElementsByTagNameNS('*', 'p')]
@@ -393,26 +381,28 @@ async function renderPptx(host, src, ctx) {
       .filter((t) => t.trim());
     paras.forEach((t, j) => card.appendChild(el(j === 0 ? 'h3' : 'p', null, t)));
     // 幻灯片里的图片
-    const rels = zip.file(path.replace('slides/', 'slides/_rels/') + '.rels');
-    if (rels) {
-      const rx = parser.parseFromString(await rels.async('string'), 'application/xml');
-      for (const r of rx.getElementsByTagNameNS('*', 'Relationship')) {
-        if (!/\/image$/.test(r.getAttribute('Type') || '')) continue;
-        const target = new URL(r.getAttribute('Target') || '', 'http://x/ppt/slides/').pathname.slice(1);
-        const f = zip.file(target);
-        if (!f || !/\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(target)) continue;
-        const type = /\.svg$/i.test(target) ? 'image/svg+xml' : '';
-        const url = URL.createObjectURL(new Blob([await f.async('uint8array')], type ? { type } : {}));
-        urls.push(url);
+    let imgs = 0;
+    if (relText) {
+      const rx = parser.parseFromString(relText, 'application/xml');
+      const targets = [...rx.getElementsByTagNameNS('*', 'Relationship')]
+        .filter((r) => /\/image$/.test(r.getAttribute('Type') || ''))
+        .map((r) => new URL(r.getAttribute('Target') || '', 'http://x/ppt/slides/').pathname.slice(1))
+        .filter((t) => zip.file(t) && /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(t));
+      for (const url of await Promise.all(targets.map(imageUrl))) {
         const img = el('img');
+        img.loading = 'lazy';
+        img.decoding = 'async';
         img.src = url;
         img.alt = '';
         card.appendChild(img);
+        imgs++;
       }
     }
-    if (!paras.length && !card.querySelector('img')) card.appendChild(el('p', 'doc-empty', '（这一页没有文字）'));
-    list.appendChild(card);
-  }
+    if (!paras.length && !imgs) card.appendChild(el('p', 'doc-empty', '（这一页没有文字）'));
+    return card;
+  }));
+  const list = el('div', 'slides');
+  list.append(...cards);
   if (!slides.length) list.appendChild(el('div', 'doc-empty', '没有找到幻灯片内容'));
   const box = el('div', 'slides-wrap');
   box.append(el('div', 'notice', '演示文稿以提纲方式预览：显示每页的文字和图片，不还原版式与动画。'), list);
@@ -485,10 +475,6 @@ const RENDERERS = {
   audio: (h, s, c) => renderMedia(h, s, c, 'audio'),
   video: (h, s, c) => renderMedia(h, s, c, 'video'),
   font: renderFont,
-};
-
-export const DOC_NAMES = {
-  pdf: 'PDF', epub: 'EPUB', docx: 'Word 文档', sheet: '电子表格', pptx: '演示文稿', audio: '音频', video: '视频', font: '字体',
 };
 
 /** 音视频直接用 Blob 播放，其余类型需要读出完整字节 */
