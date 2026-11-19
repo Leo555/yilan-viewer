@@ -53,11 +53,11 @@
 | 地址 | 含义 |
 | --- | --- |
 | `#/` | 首页 |
-| `#/示例/代码/backend/main.go` | 打开文件（示例文件可以直接分享链接，会自动加载） |
-| `#/示例/代码/web/index.html?mode=code` | 指定视图（`code` / `preview`，默认视图不写） |
-| `#/示例/代码/backend/main.go?L=12-20` | 选中第 12～20 行 |
-| `#/示例/文档/sample.pdf?at=3` | 文档位置：PDF 的页码、EPUB 的阅读位置、表格的第几个工作表 |
-| `#/示例/代码/web` | 目录：打开其中的 README / index 等入口文件 |
+| `#/examples/code/backend/main.go` | 打开文件（示例文件可以直接分享链接，会自动加载） |
+| `#/examples/code/web/index.html?mode=code` | 指定视图（`code` / `preview`，默认视图不写） |
+| `#/examples/code/backend/main.go?L=12-20` | 选中第 12～20 行 |
+| `#/examples/documents/sample.pdf?at=3` | 文档位置：PDF 的页码、EPUB 的阅读位置、表格的第几个工作表 |
+| `#/examples/code/web` | 目录：打开其中的 README / index 等入口文件 |
 
 切换文件会新增一条浏览器历史，可以用前进 / 后退在文件之间来回切换；切换视图、选中行、翻页只替换当前这条记录。本地打开的文件不会上传，刷新后需要重新打开。
 
@@ -116,14 +116,14 @@ npm run vendor   # 重新生成 vendor/
 
 ### 示例文件
 
-首页的「查看示例」会加载 `examples/` 下的示例，按「文档 / 代码 / 纯文本 / 图片、音视频 / 字体」五类组织（`图片、音视频` 下再分 `图片 / 视频 / 音频`；顺序由 `scripts/examples.mjs` 中的 `ORDER`、`SUB_ORDER` 决定），点开某个文件时才去取它的内容。
+首页的「查看示例」会加载 `examples/` 下的示例，按 `documents / code / text / media / fonts / misc` 六类组织（`media` 下再分 `images / videos / audio`；顺序由 `scripts/examples.mjs` 中的 `ORDER`、`SUB_ORDER` 决定），点开某个文件时才去取它的内容。
 
 ```bash
 npm run examples          # 增删示例后重新生成 examples/manifest.json
-npm run examples:docs     # 重新生成 examples/文档/ 下的 PDF / EPUB / Word / Excel / PPT
-npm run examples:media    # 重新生成 examples/图片、音视频/ 下的全部图片、视频、音频（仅 macOS）
+npm run examples:docs     # 重新生成 examples/documents/ 下的 PDF / EPUB / Word / Excel / PPT
+npm run examples:media    # 重新生成 examples/media/ 下的全部图片、视频、音频（仅 macOS）
 npm run examples:formats  # 只从现有 PNG / MP4 / GIF 转出 WebP、AVIF、APNG、TIFF、WebM、MOV、AV1 及各类音频（ffmpeg-static，跨平台）
-npm run examples:misc     # 重新生成 examples/其他/ 下的 Jupyter、日历、联系人、演示证书（需 openssl）、tar.gz、漫画
+npm run examples:misc     # 重新生成 examples/misc/ 下的 Jupyter、日历、联系人、演示证书（需 openssl）、tar.gz、漫画
 ```
 
 ## 本地运行

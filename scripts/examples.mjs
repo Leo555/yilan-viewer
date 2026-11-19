@@ -6,10 +6,10 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../examples/', import.meta.url));
 const OUT = 'manifest.json';
 // 侧边栏中示例分类的显示顺序
-const ORDER = ['文档', '代码', '纯文本', '图片、音视频', '字体', '其他'];
+const ORDER = ['documents', 'code', 'text', 'media', 'fonts', 'misc'];
 // 子目录的显示顺序：相对 examples/ 的目录路径 → 子目录名
 const SUB_ORDER = {
-  '图片、音视频': ['图片', '视频', '音频'],
+  media: ['images', 'videos', 'audio'],
 };
 
 async function walk(dir) {

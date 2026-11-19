@@ -1,4 +1,4 @@
-// 生成「其他」类示例：Jupyter / 邮件 / 日历 / 联系人 / 证书 / tar.gz / 漫画 / iWork，写入 examples/其他/
+// 生成「其他」类示例：Jupyter / 邮件 / 日历 / 联系人 / 证书 / tar.gz / 漫画 / iWork，写入 examples/misc/（邮件写入 examples/documents/）
 // 用法：npm run examples:misc
 // 证书由脚本即时生成（自签名，仅作演示），不包含任何真实私钥；联系人、邮件均为虚构数据。
 import { execFileSync } from 'node:child_process';
@@ -12,14 +12,17 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const JSZip = require('jszip');
 const root = fileURLToPath(new URL('../examples/', import.meta.url));
-const out = join(root, '其他');
+const out = join(root, 'misc');
+const docOut = join(root, 'documents');
 mkdirSync(out, { recursive: true });
+mkdirSync(docOut, { recursive: true });
 const write = (name, data) => { writeFileSync(join(out, name), data); console.log(`  ${name}`); };
+const writeDoc = (name, data) => { writeFileSync(join(docOut, name), data); console.log(`  documents/${name}`); };
 
 /* ---------- Jupyter：含 Markdown、代码、文本输出、表格（HTML）、PNG 图表、报错 ---------- */
 function chartPng() {
   // 用 macOS 自带的 sips 太绕；直接复用示例里的图片当作「图表输出」
-  const p = join(root, '图片、音视频', '图片', 'sunset-small.jpeg');
+  const p = join(root, 'media', 'images', 'sunset-small.jpeg');
   return existsSync(p) ? ['image/jpeg', readFileSync(p).toString('base64')] : null;
 }
 const img = chartPng();
@@ -103,15 +106,15 @@ const eml = [
   logo.toString('base64').replace(/.{76}/g, '$&\r\n'),
   '--REL--',
   '--MIX',
-  `Content-Type: text/csv; charset=utf-8; name="${enc('进度表.csv')}"`,
-  `Content-Disposition: attachment; filename*=utf-8''${encodeURIComponent('进度表.csv')}`,
+  'Content-Type: text/csv; charset=utf-8; name="progress.csv"',
+  'Content-Disposition: attachment; filename="progress.csv"',
   'Content-Transfer-Encoding: base64',
   '',
   b64('模块,进度\n文档,100%\n结构化,80%\n'),
   '--MIX--',
   '',
 ].join('\r\n');
-write('weekly-report.eml', eml);
+writeDoc('weekly-report.eml', eml);
 
 /* ---------- 日历 ---------- */
 write('team.ics', [
@@ -178,7 +181,7 @@ write('demo-project.tar.gz', gzipSync(tar));
   const zip = new JSZip();
   const svg = (i, color) => `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="850" viewBox="0 0 600 850"><rect width="600" height="850" fill="${color}"/><text x="300" y="440" font-size="160" font-family="sans-serif" fill="#fff" text-anchor="middle">${i}</text><text x="300" y="560" font-size="36" font-family="sans-serif" fill="#fff" text-anchor="middle" opacity=".8">第 ${i} 页</text></svg>`;
   // CBZ 一般是位图；为了不依赖图像库，封面用示例 JPEG，其余页用 PNG（由 sips 转换，失败则用 JPEG 副本）
-  const cover = join(root, '图片、音视频', '图片', 'sunset.jpg');
+  const cover = join(root, 'media', 'images', 'sunset.jpg');
   if (existsSync(cover)) zip.file('001.jpg', readFileSync(cover));
   const colors = ['#4f7cff', '#6d3ff2', '#e8590c', '#2f9e44'];
   const tmp = mkdtempSync(join(tmpdir(), 'yilan-cbz-'));
@@ -195,4 +198,4 @@ write('demo-project.tar.gz', gzipSync(tar));
   write('comic.cbz', await zip.generateAsync({ type: 'nodebuffer', compression: 'STORE' }));
 }
 
-console.log('完成。iWork 示例需在 macOS 上用 Pages / Keynote / Numbers 手动另存，放到 examples/其他/ 下');
+console.log('完成。iWork 示例需在 macOS 上用 Pages / Keynote / Numbers 手动另存，放到 examples/ 下对应的分类目录');

@@ -1,4 +1,4 @@
-// 生成图片 / 视频示例到 examples/图片、音视频/{图片,视频}/（仅 macOS，依赖系统自带的 CoreGraphics 与 AVFoundation）
+// 生成图片 / 视频示例到 examples/media/{images,videos}/（仅 macOS，依赖系统自带的 CoreGraphics 与 AVFoundation）
 // 用法：swift scripts/make-media-examples.swift
 import AVFoundation
 import CoreGraphics
@@ -9,9 +9,9 @@ import UniformTypeIdentifiers
 
 let mediaDir = URL(fileURLWithPath: CommandLine.arguments[0])
   .deletingLastPathComponent().deletingLastPathComponent()
-  .appendingPathComponent("examples/图片、音视频")
-let outDir = mediaDir.appendingPathComponent("图片")
-let videoDir = mediaDir.appendingPathComponent("视频")
+  .appendingPathComponent("examples/media")
+let outDir = mediaDir.appendingPathComponent("images")
+let videoDir = mediaDir.appendingPathComponent("videos")
 for d in [outDir, videoDir] { try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
 
 let space = CGColorSpaceCreateDeviceRGB()

@@ -1,4 +1,4 @@
-// 生成文档类示例（PDF / EPUB / Word / Excel / PPT），写入 examples/文档/
+// 生成文档类示例（PDF / EPUB / Word / Excel / PPT），写入 examples/documents/
 // 用法：npm run examples:docs（之后再运行 npm run examples 更新清单）
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const JSZip = require('jszip');
 const XLSX = require('xlsx');
 
-const out = fileURLToPath(new URL('../examples/文档/', import.meta.url));
+const out = fileURLToPath(new URL('../examples/documents/', import.meta.url));
 await mkdir(out, { recursive: true });
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const zipOut = (zip) => zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', mimeType: 'application/epub+zip' });
@@ -145,4 +145,4 @@ const outputs = {
   'roadmap.pptx': await makePptx(),
 };
 for (const [name, buf] of Object.entries(outputs)) await writeFile(out + name, buf);
-console.log(`已生成 ${Object.keys(outputs).length} 个文档示例到 examples/文档/`);
+console.log(`已生成 ${Object.keys(outputs).length} 个文档示例到 examples/documents/`);

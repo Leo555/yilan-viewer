@@ -462,7 +462,7 @@ async function restoreRoute(r) {
     if (state.current) showWelcome();
     return;
   }
-  // 地址以「示例/」开头的只在示例里找，其余只在用户文件里找（两组路径可能重名）
+  // 地址以 `examples/` 开头的只在示例里找，其余只在用户文件里找（两组路径可能重名）
   const wantExample = r.path === EXAMPLES_ROOT || r.path.startsWith(`${EXAMPLES_ROOT}/`);
   const find = () => findByPath(r.path, wantExample)
     || pickFirst(state.files.filter((f) => !!f.example === wantExample && f.path.startsWith(`${r.path}/`)));

@@ -1,11 +1,11 @@
 /**
  * hash 路由，静态部署无需服务端改写：
  *   #/                                  欢迎页
- *   #/示例/代码/backend/main.go          打开文件
- *   #/示例/代码/web/index.html?mode=code 指定视图（code / preview，默认值不写）
- *   #/示例/代码/backend/main.go?L=12-20  选中行（单行写 L=12）
- *   #/示例/文档/sample.pdf?at=3          文档位置
- *   #/示例/代码/backend                  目录：打开其中第一个文件
+ *   #/examples/code/backend/main.go          打开文件
+ *   #/examples/code/web/index.html?mode=code 指定视图（code / preview，默认值不写）
+ *   #/examples/code/backend/main.go?L=12-20  选中行（单行写 L=12）
+ *   #/examples/documents/sample.pdf?at=3     文档位置
+ *   #/examples/code/backend                  目录：打开其中第一个文件
  * 示例文件可直接通过链接分享；本地文件只在当前会话内有效，刷新后无法恢复。
  */
 import { state } from './state.js';

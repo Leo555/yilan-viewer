@@ -16,7 +16,7 @@ export const findByPath = (path, example) => byPath.get(pathKey(path, example)) 
 /** example: 内置示例。示例和用户文件分两组显示，路径相同也互不覆盖 */
 export function addFile(path, size, mtime, getBlob, { example = false } = {}) {
   path = path.replace(/^\/+/, '');
-  // 用户自己的顶层文件夹恰好叫「示例」时改个名，免得链接被当成内置示例
+  // 用户自己的顶层文件夹恰好叫 `examples` 时改个名，免得链接被当成内置示例
   if (!example && (path === EXAMPLES_ROOT || path.startsWith(`${EXAMPLES_ROOT}/`))) path = `${EXAMPLES_ROOT} (1)${path.slice(EXAMPLES_ROOT.length)}`;
   const existing = findByPath(path, example);
   if (existing) {
@@ -285,8 +285,8 @@ export async function fetchExamples() {
       }
     }
     const now = Date.now();
-    // 只接受普通相对路径：每段由字母、数字（含中文）、常见中文标点、. _ - 空格组成，且不能是 . 或 ..
-    const safe = (p) => typeof p === 'string' && p.split('/').every((s) => /^[\p{L}\p{N}._ \-、，（）·]+$/u.test(s) && s !== '.' && s !== '..');
+    // 示例路径统一用英文：每段只允许字母、数字、. _ - 空格，且不能是 . 或 ..
+    const safe = (p) => typeof p === 'string' && p.split('/').every((s) => /^[A-Za-z0-9._ \-]+$/.test(s) && s !== '.' && s !== '..');
     return files
       .filter((f) => safe(f.path))
       .map((f) => {

@@ -2,7 +2,7 @@
 import { clamp } from './util.js';
 
 export const APP_NAME = '一览';
-export const EXAMPLES_ROOT = '示例';
+export const EXAMPLES_ROOT = 'examples';
 
 export const MAX_HIGHLIGHT = 1.5 * 1024 * 1024; // 超过这个大小的文本不做语法高亮，避免卡顿
 export const WORKER_THRESHOLD = 60 * 1024; // 超过这个大小在后台线程高亮

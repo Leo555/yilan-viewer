@@ -1,9 +1,14 @@
 /**
- * Service Worker：examples / vendor 走「缓存优先 + 后台更新」（stale-while-revalidate）。
- * 静态示例资源几乎不变，命中后秒开；后台异步刷新到最新。
+ * Service Worker：静态资源持久缓存。
+ * - /examples/manifest.json 走「网络优先」：清单是索引，部署变更（改名/增删示例）后
+ *   绝不能继续用旧清单，否则会按已不存在的文件预取，产生 404；离线时回退到缓存。
+ * - 其余 examples / vendor 资源「缓存优先 + 24h 后台更新」：命中即秒开，
+ *   且不会每次打开页面都把上百个文件重新请求一遍。
  */
-const CACHE = 'yilan-v1';
+const CACHE = 'yilan-v2';
 const PREFIXES = ['/examples/', '/vendor/'];
+const MANIFEST = '/examples/manifest.json';
+const MAX_AGE = 24 * 60 * 60 * 1000;
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -16,6 +21,17 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
+/** 写入缓存时打上本地时间戳，用于判断是否需要后台更新 */
+function stamped(res) {
+  const copy = new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers: new Headers(res.headers),
+  });
+  copy.headers.set('x-yilan-cached-at', String(Date.now()));
+  return copy;
+}
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
@@ -25,21 +41,36 @@ self.addEventListener('fetch', (e) => {
 
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    const cached = await cache.match(req, { ignoreSearch: false });
 
-    // 后台刷新：失败或离线时静默忽略
-    const refresh = fetch(req).then((res) => {
-      if (res && res.ok) cache.put(req, res.clone());
-      return res;
-    }).catch(() => null);
-
-    if (cached) {
-      refresh.catch(() => {});
-      return cached;
+    // 清单必须拿最新的；拿不到网络时才用旧清单兜底（离线可用）
+    if (url.pathname === MANIFEST) {
+      try {
+        const res = await fetch(req);
+        if (res.ok) {
+          const copy = res.clone();
+          await cache.put(req, stamped(copy));
+          return res;
+        }
+      } catch { /* 离线 */ }
+      return (await cache.match(req)) || Response.error();
     }
-    const res = await refresh;
-    if (res) return res;
-    const fallback = await cache.match(req);
-    return fallback || new Response('offline', { status: 504 });
+
+    const cached = await cache.match(req);
+    const ts = Number(cached?.headers.get('x-yilan-cached-at') || 0);
+    if (cached && Date.now() - ts < MAX_AGE) return cached;
+
+    try {
+      const res = await fetch(req);
+      if (res.ok) {
+        const copy = res.clone();
+        await cache.put(req, stamped(copy));
+        return res;
+      }
+      // 服务器上已下线的示例：删掉缓存，避免旧清单一直命中幽灵文件
+      if (res.status === 404) await cache.delete(req);
+      return cached || res;
+    } catch {
+      return cached || Response.error();
+    }
   })());
 });

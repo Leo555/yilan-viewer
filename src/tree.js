@@ -186,7 +186,7 @@ export function renderTree() {
       continue;
     }
     const root = buildTree(list);
-    // 示例都在「示例/」下，分组标题已经说明了，直接展示它的子目录
+    // 示例都在 `examples/` 下，分组标题已经说明了，直接展示它的子目录
     const exRoot = g.id === 'example' ? root.dirs.get(EXAMPLES_ROOT) : null;
     walk(exRoot && root.dirs.size === 1 && !root.files.length ? exRoot : root, 0, body, q);
   }
