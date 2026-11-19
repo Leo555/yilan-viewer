@@ -135,6 +135,12 @@ async function openFile(id, opts = {}) {
   const token = ++state.openToken;
   state.activeId = id;
   state.selLines = null;
+  // 先更新标题与文件名：读字节、识别语言、加载渲染器期间切换看起来是即时的
+  const name = baseName(file.path);
+  document.title = `${name} — ${APP_NAME}`;
+  $('#file-name').textContent = name;
+  $('#file-name').title = file.path;
+  $('#file-meta').textContent = file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : '';
   revealInTree(file, { scroll: false });
   closeFind();
 

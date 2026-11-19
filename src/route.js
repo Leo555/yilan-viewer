@@ -10,7 +10,12 @@
  */
 import { state } from './state.js';
 
-let routing = false; // 正在按地址栏恢复状态时不回写历史
+// 按地址栏恢复状态时不要回写历史（否则会多出一条重复记录）。
+// 用计数 + 序号防止「上一个路由恢复较慢」时把地址栏改回旧文件：
+// PDF / EPUB 等渲染在后台标签页可能长时间不返回，故另加超时兜底，
+// 避免 routing 永远卡在 >0，导致之后点击文件也不更新地址栏。
+let routing = 0;
+let routeSeq = 0;
 
 export function parseRoute(hash = location.hash) {
   if (!hash || hash === '#' || hash === '#/') return { path: '' };
@@ -58,13 +63,21 @@ export function syncRoute({ replace = false } = {}) {
 
 /** 按地址栏恢复状态，结束后规范化地址（目录 → 文件、旧格式 #L12 → ?L=12、找不到的文件 → 首页） */
 export async function applyRoute(restore) {
+  const seq = ++routeSeq;
   const r = parseRoute();
   if (!r) return;
-  routing = true;
+  routing++;
+  let released = false;
+  const release = () => { if (!released) { released = true; routing--; } };
   try {
-    await restore(r);
+    await Promise.race([
+      restore(r).catch((err) => { console.warn('路由恢复失败', err); }).finally(release),
+      new Promise((resolve) => setTimeout(() => { release(); resolve(); }, 2500)),
+    ]);
   } finally {
-    routing = false;
+    release();
   }
+  // 已有更新的路由接管，或地址栏已被改写：不能再回写这次的旧状态
+  if (seq !== routeSeq || parseRoute()?.path !== r.path) return;
   syncRoute({ replace: true });
 }
