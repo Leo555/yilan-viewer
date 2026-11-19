@@ -8,10 +8,12 @@
 
 | 目录 | 内容 |
 | --- | --- |
-| `文档/` | PDF、EPUB、Word、Excel、PPT |
+| `文档/` | PDF、EPUB、Word、Excel、PPT、iWork（Pages / Numbers）、邮件（.eml，含 HTML 正文、内嵌图片与附件） |
 | `代码/` | 按用途再分：`web/` 前端、`backend/` 服务端、`native/` 客户端与系统、`functional/` 函数式、`scripts/` 脚本、`data/` 数据库与接口、`config/` 配置文件，共 40 多种语言 |
-| `纯文本/` | 纯文本、CSV、TSV、日志、Diff、字幕、LaTeX |
-| `图片、视频/` | PNG、JPG、GIF 动图、SVG、BMP、ICO、MP4 视频 |
+| `纯文本/` | Markdown、JSON / JSON Lines、CSV（逗号 / 分号，含引号内换行）、TSV、日志（应用日志 / 访问日志）、Diff、字幕（SRT / WebVTT）、LaTeX / BibTeX、无扩展名文件（CHANGELOG）、GBK 与 UTF-16 编码的文本 |
+| `图片、音视频/` | `图片/`：PNG、JPEG、WebP、AVIF、GIF / APNG / WebP 动图、SVG、BMP、ICO、TIFF（仅 Safari）<br>`视频/`：MP4（H.264 / AV1）、M4V、MOV、WebM（VP9）<br>`音频/`：MP3、M4A、OGG、Opus、WAV、FLAC |
+| `字体/` | TTF（霞鹜文楷子集、Liberation Sans、Inter Bold）、可变字体（Roboto Flex，可拖动字重轴）、OTF（Inter Italic、Source Serif 4、Source Code Pro，CFF 轮廓）、WOFF、WOFF2、EOT、TTC 字体集合；均为 OFL 开源字体，许可见 `LICENSE-OFL.txt` |
+| `其他/` | Jupyter 笔记本（.ipynb）、日历（.ics）、联系人（.vcf，虚构数据）、自签名演示证书（.pem / .der）、Keynote（.key）、压缩包（.tar.gz，点开后可解压浏览）、漫画（.cbz） |
 
 ## 快捷键
 

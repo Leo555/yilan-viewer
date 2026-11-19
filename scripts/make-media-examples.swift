@@ -1,4 +1,4 @@
-// 生成图片 / 视频示例到 examples/图片、视频/（仅 macOS，依赖系统自带的 CoreGraphics 与 AVFoundation）
+// 生成图片 / 视频示例到 examples/图片、音视频/{图片,视频}/（仅 macOS，依赖系统自带的 CoreGraphics 与 AVFoundation）
 // 用法：swift scripts/make-media-examples.swift
 import AVFoundation
 import CoreGraphics
@@ -7,10 +7,12 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-let outDir = URL(fileURLWithPath: CommandLine.arguments[0])
+let mediaDir = URL(fileURLWithPath: CommandLine.arguments[0])
   .deletingLastPathComponent().deletingLastPathComponent()
-  .appendingPathComponent("examples/图片、视频")
-try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+  .appendingPathComponent("examples/图片、音视频")
+let outDir = mediaDir.appendingPathComponent("图片")
+let videoDir = mediaDir.appendingPathComponent("视频")
+for d in [outDir, videoDir] { try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true) }
 
 let space = CGColorSpaceCreateDeviceRGB()
 func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> CGColor { CGColor(colorSpace: space, components: [r, g, b, a])! }
@@ -108,7 +110,7 @@ do {
 
 // 视频：4 秒 640×360 H.264 MP4
 func makeVideo() throws {
-  let url = outDir.appendingPathComponent("sunrise.mp4")
+  let url = videoDir.appendingPathComponent("sunrise.mp4")
   try? FileManager.default.removeItem(at: url)
   let (w, h, fps, seconds) = (640, 360, 24, 4)
   let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
@@ -143,4 +145,4 @@ func makeVideo() throws {
   if writer.status != .completed { throw writer.error ?? NSError(domain: "video", code: 1) }
 }
 try makeVideo()
-print("已生成图片 / 视频示例到 \(outDir.path)")
+print("已生成图片 / 视频示例到 \(mediaDir.path)")

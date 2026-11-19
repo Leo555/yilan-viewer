@@ -1,0 +1,6 @@
+{"ts":"2026-11-19T09:00:01Z","event":"page_view","user":1024,"path":"/","ms":132}
+{"ts":"2026-11-19T09:00:03Z","event":"open_file","user":1024,"kind":"pdf","size":2048}
+{"ts":"2026-11-19T09:00:07Z","event":"search","user":1024,"query":"活着","hits":3}
+{"ts":"2026-11-19T09:01:12Z","event":"open_file","user":2048,"kind":"markdown","size":1170}
+{"ts":"2026-11-19T09:01:15Z","event":"theme","user":2048,"value":"dark"}
+{"ts":"2026-11-19T09:02:40Z","event":"error","user":4096,"message":"无法解析压缩包","fatal":false}

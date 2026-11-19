@@ -11,19 +11,26 @@
 | PDF | `.pdf` | pdf.js 渲染，可选中文字；支持查找、缩放、密码保护的文件，链接和批注可点击 |
 | 电子书 | `.epub` | 分页阅读，宽屏时双页显示；有目录跳转，支持方向键翻页、调字号、深色主题 |
 | Word | `.docx` | 转成 HTML 显示，保留标题、列表、表格、图片、粗体 / 斜体等 |
-| 表格 | `.xlsx` `.xls` `.xlsb` `.ods` `.numbers` | 多工作表切换，列号 A/B/C，表头固定 |
+| 表格 | `.xlsx` `.xls` `.xlsb` `.ods` | 多工作表切换，列号 A/B/C，表头固定 |
 | 演示文稿 | `.pptx` | 按页列出文字和图片（提纲方式，不还原版式和动画） |
+| iWork | `.pages` `.key` `.numbers` | 显示文件内嵌的预览图（通常是第一页） |
+| Jupyter | `.ipynb` | 按单元格显示：Markdown、带高亮的代码、文本 / 表格 / 图片输出、报错 |
+| 邮件 | `.eml` | 发件人、收件人、主题、时间；HTML 正文放在沙箱里显示，默认拦截远程图片；附件可下载 |
+| 日历 / 联系人 | `.ics` `.vcf` | 日程按日期列出（地点、重复规则、描述）；联系人卡片（电话、邮箱、地址、头像） |
+| 证书 / 密钥 | `.pem` `.crt` `.cer` `.der` | 使用者、颁发者、有效期、域名、公钥、签名算法、指纹；私钥只显示类型，不显示内容 |
+| 漫画 | `.cbz` | 按页翻看，支持方向键、拖动进度条 |
+| 压缩包 | `.zip` `.tar` `.tar.gz` `.tgz` `.gz` | 在浏览器里解开，按目录浏览其中的文件 |
 | 代码 | 80 多种语言 | 语法高亮；按文件名和内容自动识别语言，也可手动切换 |
 | 文本 | Markdown、CSV / TSV、JSON、日志、字幕等 | Markdown / CSV / JSON 可在「预览」和「源码」之间切换；文本编码自动识别 |
 | 网页 | `.html` `.svg` | 放在隔离沙箱中渲染，不执行脚本 |
 | 图片 | PNG、JPG、GIF、WebP、AVIF、BMP、ICO | 显示原始尺寸 |
 | 音视频 | MP3、WAV、OGG、M4A、FLAC、MP4、WebM、MOV | 浏览器原生播放器，能否播放取决于浏览器支持的编码 |
-| 字体 | TTF、OTF、WOFF、WOFF2 | 多字号示例，示例文字可编辑 |
+| 字体 | TTF、OTF、WOFF、WOFF2、EOT、TTC / OTC | 多字号示例（可编辑）、字符表、字体名称与版权；可变字体可拖动各轴；TTC / OTC 浏览器无法加载，只显示文件信息 |
 
 ## 功能
 
 **打开方式**
-- 拖入文件、文件夹或 zip 压缩包（压缩包在浏览器里解开，可以直接浏览里面的文件）
+- 拖入文件、文件夹或压缩包（zip / tar / tar.gz，在浏览器里解开，可以直接浏览里面的文件）
 - 工具栏「打开文件」「打开文件夹」
 - 直接 `⌘V` 粘贴代码、文本或文件；也可以在「粘贴文本」里填文件名，用来识别语言
 - 自动跳过 `node_modules`、`.git`、`dist` 等目录
@@ -90,9 +97,11 @@ src/
   route.js            hash 路由
   code-html.js        源码分块 HTML 生成（主线程与 Worker 共用）
   highlight-worker.js 后台高亮 Worker
-  docviewers.js       PDF / EPUB / Word / 表格 / 演示文稿 / 音视频 / 字体
+  docviewers.js       PDF / EPUB / Word / 表格 / 演示文稿 / 音视频 / 字体 / 漫画 / iWork / 证书（DER）
+  x509.js             X.509 证书解析（ASN.1 DER）
   views/code.js       源码视图
   views/preview.js    图片、Markdown、CSV、HTML / SVG、JSON 树
+  views/structured.js Jupyter、邮件、日历、联系人、证书（PEM）
 ```
 
 ### 升级依赖 / 增加语言
@@ -107,12 +116,14 @@ npm run vendor   # 重新生成 vendor/
 
 ### 示例文件
 
-首页的「查看示例」会加载 `examples/` 下的示例，按「文档 / 代码 / 纯文本 / 图片、视频」四类组织（顺序由 `scripts/examples.mjs` 中的 `ORDER` 决定），点开某个文件时才去取它的内容。
+首页的「查看示例」会加载 `examples/` 下的示例，按「文档 / 代码 / 纯文本 / 图片、音视频 / 字体」五类组织（`图片、音视频` 下再分 `图片 / 视频 / 音频`；顺序由 `scripts/examples.mjs` 中的 `ORDER`、`SUB_ORDER` 决定），点开某个文件时才去取它的内容。
 
 ```bash
 npm run examples          # 增删示例后重新生成 examples/manifest.json
 npm run examples:docs     # 重新生成 examples/文档/ 下的 PDF / EPUB / Word / Excel / PPT
-npm run examples:media    # 重新生成 examples/图片、视频/ 下的 PNG / JPG / GIF / MP4 等（仅 macOS）
+npm run examples:media    # 重新生成 examples/图片、音视频/ 下的全部图片、视频、音频（仅 macOS）
+npm run examples:formats  # 只从现有 PNG / MP4 / GIF 转出 WebP、AVIF、APNG、TIFF、WebM、MOV、AV1 及各类音频（ffmpeg-static，跨平台）
+npm run examples:misc     # 重新生成 examples/其他/ 下的 Jupyter、日历、联系人、演示证书（需 openssl）、tar.gz、漫画
 ```
 
 ## 本地运行

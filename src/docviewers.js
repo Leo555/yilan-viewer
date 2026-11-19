@@ -412,8 +412,18 @@ async function renderPptx(host, src, ctx) {
 }
 
 /* ============================== 音视频 ============================== */
+/** 按扩展名补上 MIME：本地拖入的文件、服务器返回 octet-stream 时，浏览器需要它来选解码器 */
+const MEDIA_MIME = {
+  mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg; codecs=opus',
+  m4a: 'audio/mp4', aac: 'audio/aac', flac: 'audio/flac', weba: 'audio/webm',
+  mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg', mov: 'video/quicktime', mkv: 'video/x-matroska',
+};
+
 async function renderMedia(host, src, ctx, kind) {
-  const url = URL.createObjectURL(src.blob);
+  const ext = (src.name.split('.').pop() || '').toLowerCase();
+  const type = MEDIA_MIME[ext];
+  const blob = type && src.blob.type !== type ? new Blob([src.blob], { type }) : src.blob;
+  const url = URL.createObjectURL(blob);
   const media = el(kind);
   media.controls = true;
   media.preload = 'metadata';
@@ -424,31 +434,287 @@ async function renderMedia(host, src, ctx, kind) {
     const size = kind === 'video' && media.videoWidth ? `${media.videoWidth} × ${media.videoHeight}` : '';
     ctx.status([t && `时长 ${t}`, size].filter(Boolean).join('  ·  '));
   });
-  media.addEventListener('error', () => ctx.status('浏览器不支持这种编码，无法播放'));
   const box = el('div', `media media-${kind}`);
+  media.addEventListener('error', () => {
+    const msg = `当前浏览器不支持播放这个${kind === 'audio' ? '音频' : '视频'}（${ext.toUpperCase()}），可以下载后用本地播放器打开。`;
+    ctx.status('无法播放');
+    box.replaceChildren(el('div', 'doc-empty', msg));
+  });
   if (kind === 'audio') box.appendChild(el('div', 'media-name', src.name));
   box.appendChild(media);
   host.replaceChildren(box);
   return { destroy() { media.pause(); media.removeAttribute('src'); media.load(); URL.revokeObjectURL(url); } };
 }
 
-/* ============================== 字体 ============================== */
+/* ============================== 字体 ==============================
+ * 支持的格式：
+ *   TTF / OTF（含 TrueType 集合 .ttc / OpenType 集合 .otc）—— 浏览器直接加载
+ *   WOFF —— 每张表单独 zlib 压缩，用 DecompressionStream 解开后再读信息
+ *   WOFF2 —— 浏览器能加载显示，但 Brotli + 表变换没有原生解码接口，读不到名称与字符表
+ *   EOT —— 老 IE 的封装格式，尾部内嵌一份 TTF/OTF，取出后即可加载
+ *   字体集合（ttcf）浏览器不支持，只提示、不渲染
+ */
+async function woffToSfnt(bytes) {
+  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const flavor = v.getUint32(4);
+  const num = v.getUint16(12);
+  const entries = [];
+  for (let i = 0; i < num; i++) {
+    const p = 44 + i * 20;
+    entries.push({ tag: v.getUint32(p), off: v.getUint32(p + 4), comp: v.getUint32(p + 8), orig: v.getUint32(p + 12), sum: v.getUint32(p + 16) });
+  }
+  const datas = await Promise.all(entries.map(async (e) => {
+    const raw = bytes.subarray(e.off, e.off + e.comp);
+    if (e.comp === e.orig) return raw;
+    const stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }));
+  const head = 12 + num * 16;
+  const total = datas.reduce((s, d) => s + ((d.length + 3) & ~3), head);
+  const out = new Uint8Array(total);
+  const ov = new DataView(out.buffer);
+  ov.setUint32(0, flavor);
+  ov.setUint16(4, num);
+  let pos = head;
+  entries.forEach((e, i) => {
+    const p = 12 + i * 16;
+    ov.setUint32(p, e.tag);
+    ov.setUint32(p + 4, e.sum);
+    ov.setUint32(p + 8, pos);
+    ov.setUint32(p + 12, datas[i].length);
+    out.set(datas[i], pos);
+    pos += (datas[i].length + 3) & ~3;
+  });
+  return out;
+}
+
+/** EOT（Embedded OpenType）：头部是小端，记录总长与字体数据长度，数据在文件尾部 */
+function eotToSfnt(bytes) {
+  if (bytes.length < 16) return null;
+  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const total = v.getUint32(0, true);
+  const fontSize = v.getUint32(4, true);
+  const version = v.getUint32(8, true);
+  if (!total || !fontSize || total > bytes.length) return null;
+  // 版本 0x00020002 是 MicroType Express 压缩，浏览器和这里都解不了
+  if (version === 0x00020002) return null;
+  const data = bytes.subarray(total - fontSize, total);
+  return isSfnt(data) ? data : null;
+}
+
+const SFNT_TAGS = ['OTTO', 'true', '\0\u0001\0\0'];
+const isSfnt = (b) => b.length >= 12 && SFNT_TAGS.includes(String.fromCharCode(...b.subarray(0, 4)));
+
+/**
+ * 读取 TTF / OTF 的基本信息（name / maxp / cmap / fvar / CFF 表）。WOFF 先解压、EOT 先取出内嵌数据。
+ * WOFF2 与字体集合读不到，只显示格式。
+ */
+function readFontInfo(bytes, format) {
+  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const tag = String.fromCharCode(...bytes.subarray(0, 4));
+  const kind = { OTTO: 'OpenType（CFF）', true: 'TrueType', '\0\u0001\0\0': 'TrueType', wOFF: 'WOFF', wOF2: 'WOFF2', ttcf: '字体集合（TTC / OTC）' }[tag];
+  const info = { format: format || kind || '未知', names: {}, glyphs: 0, chars: [], axes: [], unitsPerEm: 0, cff: false };
+  if (!['OTTO', 'true', '\0\u0001\0\0'].includes(tag) || bytes.length < 12) return info;
+  const tables = {};
+  const n = v.getUint16(4);
+  for (let i = 0; i < n && 12 + i * 16 + 16 <= bytes.length; i++) {
+    const p = 12 + i * 16;
+    tables[String.fromCharCode(...bytes.subarray(p, p + 4))] = { off: v.getUint32(p + 8), len: v.getUint32(p + 12) };
+  }
+  try {
+    if (tables.maxp) info.glyphs = v.getUint16(tables.maxp.off + 4);
+    if (tables.head) info.unitsPerEm = v.getUint16(tables.head.off + 18);
+    info.cff = !!(tables['CFF '] || tables.CFF2);
+    if (tables.fvar) {
+      const base = tables.fvar.off;
+      const count = v.getUint16(base + 8);
+      const size = v.getUint16(base + 10);
+      for (let i = 0; i < count; i++) {
+        const p = base + 16 + i * size;
+        info.axes.push({
+          tag: String.fromCharCode(...bytes.subarray(p, p + 4)),
+          min: v.getInt32(p + 4) / 65536,
+          def: v.getInt32(p + 8) / 65536,
+          max: v.getInt32(p + 12) / 65536,
+        });
+      }
+    }
+    if (tables.name) {
+      const base = tables.name.off;
+      const count = v.getUint16(base + 2);
+      const strings = base + v.getUint16(base + 4);
+      const want = { 1: 'family', 2: 'style', 4: 'full', 5: 'version', 0: 'copyright', 13: 'license', 16: 'family', 17: 'style' };
+      for (let i = 0; i < count; i++) {
+        const r = base + 6 + i * 12;
+        const [pid, eid, lang, nid, len, off] = [v.getUint16(r), v.getUint16(r + 2), v.getUint16(r + 4), v.getUint16(r + 6), v.getUint16(r + 8), v.getUint16(r + 10)];
+        const key = want[nid];
+        if (!key || !(pid === 3 && (eid === 1 || eid === 10)) && pid !== 0) continue;
+        const raw = bytes.subarray(strings + off, strings + off + len);
+        const text = new TextDecoder('utf-16be').decode(raw).trim();
+        // 优先简体中文（0x0804），其次英文；16/17 号（排版用的家族名）覆盖 1/2 号
+        const zh = lang === 0x0804;
+        const prev = info.names[key];
+        if (!prev || zh || (nid >= 16 && !prev.zh)) info.names[key] = { text, zh };
+      }
+      for (const k of Object.keys(info.names)) info.names[k] = info.names[k].text;
+    }
+    if (tables.cmap) info.chars = readCmap(v, tables.cmap.off);
+  } catch { /* 表结构异常时只展示能读到的部分 */ }
+  return info;
+}
+
+/** 从 cmap 表（format 4 / 12）取出所有字符码位 */
+function readCmap(v, base) {
+  const num = v.getUint16(base + 2);
+  let best = null;
+  for (let i = 0; i < num; i++) {
+    const pid = v.getUint16(base + 4 + i * 8);
+    const eid = v.getUint16(base + 6 + i * 8);
+    const off = base + v.getUint32(base + 8 + i * 8);
+    const fmt = v.getUint16(off);
+    if (fmt === 12 && (pid === 3 && eid === 10 || pid === 0)) { best = [fmt, off]; break; }
+    if (fmt === 4 && !best) best = [fmt, off];
+  }
+  const out = [];
+  if (!best) return out;
+  const [fmt, off] = best;
+  const LIMIT = 30000;
+  if (fmt === 4) {
+    const segX2 = v.getUint16(off + 6);
+    for (let s = 0; s < segX2 / 2; s++) {
+      const end = v.getUint16(off + 14 + s * 2);
+      const start = v.getUint16(off + 16 + segX2 + s * 2);
+      for (let c = start; c <= end && c !== 0xffff && out.length < LIMIT; c++) out.push(c);
+    }
+  } else {
+    const groups = v.getUint32(off + 12);
+    for (let g = 0; g < groups; g++) {
+      const start = v.getUint32(off + 16 + g * 12);
+      const end = v.getUint32(off + 20 + g * 12);
+      for (let c = start; c <= end && out.length < LIMIT; c++) out.push(c);
+    }
+  }
+  return out;
+}
+
 let fontSeq = 0;
+
+/** 按格式得到可直接交给 FontFace 的 SFNT 数据；无法转换时返回 null */
+async function fontSfnt(bytes, magic, isEot) {
+  if (isSfnt(bytes)) return bytes;
+  if (magic === 'wOFF') {
+    try { return await woffToSfnt(bytes); } catch { return null; }
+  }
+  if (isEot) return eotToSfnt(bytes);
+  return null; // WOFF2 交给浏览器，字体集合不支持
+}
+
+const AXIS_NAMES = {
+  wght: '字重', wdth: '字宽', ital: '斜体', slnt: '倾斜', opsz: '光学尺寸',
+  GRAD: '灰度', XOPQ: 'x 不透明度', YOPQ: 'y 不透明度', XTRA: 'x 透明度', YTRA: 'y 透明度',
+  YTAS: '上标', YTDE: '下标', YTLC: '小写高度', YTUC: '大写高度', YTFI: '图形',
+  CASL: '随意度', CRSV: '连笔', MONO: '等宽', SOFT: '柔和度', WONK: '古怪',
+  BNCE: '弹跳', INFR: '上下伸展', SPAC: '字距', EDPT: '扩展深度',
+};
+
 async function renderFont(host, src, ctx) {
   const family = `preview-font-${++fontSeq}`;
-  const face = new FontFace(family, toArrayBuffer(src.bytes));
-  await face.load();
-  document.fonts.add(face);
+  const bytes = src.bytes;
+  const magic = String.fromCharCode(...bytes.subarray(0, 4));
+  const isCollection = magic === 'ttcf';
+  const isWoff2 = magic === 'wOF2';
+  const isEot = !isSfnt(bytes) && !isCollection && !isWoff2 && /\.eot$/i.test(src.name);
+  const sfnt = await fontSfnt(bytes, magic, isEot);
+
+  // 浏览器加载：WOFF2 直接用原始数据；EOT 需要先取出内嵌字体；字体集合无法加载
+  let face = null;
+  if (!isCollection && (isWoff2 || sfnt)) {
+    try {
+      face = new FontFace(family, toArrayBuffer(sfnt || bytes));
+      await face.load();
+      document.fonts.add(face);
+    } catch (err) {
+      console.warn('字体加载失败', err);
+      face = null;
+    }
+  }
+
+  let info = sfnt ? readFontInfo(sfnt) : readFontInfo(bytes);
+  if (sfnt && magic === 'wOFF') info.format = 'WOFF';
+  if (sfnt && isEot) info.format = 'EOT（内嵌 TTF / OTF）';
+  if (isWoff2) info.format = 'WOFF2';
+  if (isCollection) info.format = '字体集合（TTC / OTC）';
+
   const box = el('div', 'font-preview');
-  box.style.fontFamily = `"${family}", var(--ui)`;
-  box.appendChild(el('div', 'font-name', `${src.name}`));
+  const useFont = face ? `"${family}", var(--ui)` : 'var(--ui)';
+
+  // 头部：字体名、格式、字形数
+  const head = el('div', 'font-head');
+  const title = el('div', 'font-title', info.names.full || info.names.family || src.name);
+  title.style.fontFamily = useFont;
+  head.appendChild(title);
+  const meta = [
+    info.names.family && info.names.style ? `${info.names.family} · ${info.names.style}` : '',
+    info.format,
+    info.glyphs ? (info.cff ? 'CFF 轮廓' : 'TrueType 轮廓') : '',
+    info.axes.length ? '可变字体' : '',
+    info.glyphs ? `${info.glyphs.toLocaleString()} 个字形` : '',
+    info.chars.length ? `${info.chars.length.toLocaleString()} 个字符` : '',
+    info.unitsPerEm ? `${info.unitsPerEm} units/em` : '',
+    info.names.version || '',
+  ].filter(Boolean);
+  head.appendChild(el('div', 'font-meta', meta.join('  ·  ')));
+  if (info.names.copyright) head.appendChild(el('div', 'font-copy', info.names.copyright));
+  if (!face) {
+    head.appendChild(el('div', 'font-copy', isCollection
+      ? 'TTC / OTC 是多个字体的集合，浏览器不支持直接加载，只能显示文件信息。用 fontTools 之类的工具可以拆出单个字体。'
+      : '这个文件浏览器无法加载，只能显示文件信息。'));
+  }
+  box.appendChild(head);
+
+  // 可变字体：每个轴一个滑块，拖动时改写 --fv（字体元素用 font-variation-settings: var(--fv)）
+  if (info.axes.length && face) {
+    const wrap = el('div', 'font-axes');
+    const sync = () => {
+      const parts = [...wrap.querySelectorAll('input')]
+        .filter((i) => Number(i.value) !== Number(i.dataset.def))
+        .map((i) => `"${i.dataset.tag}" ${Number(i.value).toFixed(1)}`);
+      box.style.setProperty('--fv', parts.join(', ') || 'normal');
+    };
+    for (const ax of info.axes) {
+      if (ax.max === ax.min) continue;
+      const row = el('label', 'font-axis');
+      row.appendChild(el('span', 'font-axis-name', AXIS_NAMES[ax.tag] ? `${AXIS_NAMES[ax.tag]} ${ax.tag}` : ax.tag));
+      const input = document.createElement('input');
+      input.type = 'range';
+      Object.assign(input, { min: ax.min, max: ax.max, step: (ax.max - ax.min) / 100, value: ax.def });
+      input.dataset.tag = ax.tag;
+      input.dataset.def = ax.def;
+      const out = el('span', 'font-axis-val', String(ax.def));
+      const refresh = () => { out.textContent = Number(input.value).toFixed(1); sync(); };
+      input.addEventListener('input', refresh);
+      // 双击轴名恢复默认值
+      row.addEventListener('dblclick', () => { input.value = ax.def; refresh(); });
+      row.title = '拖动调整，双击恢复默认值';
+      row.append(input, out);
+      wrap.appendChild(row);
+    }
+    sync();
+    box.appendChild(el('div', 'font-section', '可变字体轴'));
+    box.appendChild(wrap);
+  }
+
+  // 示例文字：按字体实际包含的字符挑选
+  const sample = el('div', 'font-samples');
+  sample.style.fontFamily = useFont;
+  const hasCjk = info.chars.some((c) => c >= 0x4e00 && c <= 0x9fff);
   const samples = [
-    [56, 'Aa 永 あ 한'],
-    [32, 'The quick brown fox jumps over the lazy dog.'],
-    [24, '天地玄黄，宇宙洪荒。日月盈昃，辰宿列张。'],
-    [18, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'],
-    [18, '0123456789 !@#$%^&*()[]{};:\'",.<>/?'],
-    [14, '春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。'],
+    [64, hasCjk ? '永字八法 Aa' : 'Aa Gg Rr'],
+    [36, hasCjk ? '天地玄黄，宇宙洪荒。' : 'The quick brown fox'],
+    [24, 'The quick brown fox jumps over the lazy dog.'],
+    ...(hasCjk ? [[20, '春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。']] : []),
+    [16, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789'],
+    [13, '!@#$%^&*()[]{};:\'",.<>/?\\|`~-=+_'],
   ];
   for (const [size, text] of samples) {
     const row = el('div', 'font-row');
@@ -458,11 +724,141 @@ async function renderFont(host, src, ctx) {
     t.contentEditable = 'plaintext-only';
     t.spellcheck = false;
     row.appendChild(t);
-    box.appendChild(row);
+    sample.appendChild(row);
   }
+  box.appendChild(sample);
+
+  // 字符表：最多 2000 个，避免超大中文字体卡住页面
+  if (isWoff2 && !info.chars.length) {
+    box.appendChild(el('div', 'font-section', 'WOFF2 用 Brotli 压缩并做了表变换，浏览器没有解码接口，读不到字体名称与字符表；字体本身可以正常显示'));
+  }
+  if (info.chars.length) {
+    const shown = info.chars.filter((c) => c > 0x20 && !(c >= 0x7f && c < 0xa0)).slice(0, 2000);
+    box.appendChild(el('div', 'font-section', `字符表${info.chars.length > shown.length ? `（显示前 ${shown.length.toLocaleString()} 个）` : ''}`));
+    const grid = el('div', 'font-grid');
+    grid.style.fontFamily = useFont;
+    const frag = document.createDocumentFragment();
+    for (const c of shown) {
+      const cell = el('div', 'font-cell');
+      cell.appendChild(el('span', 'font-glyph', String.fromCodePoint(c)));
+      cell.appendChild(el('span', 'font-code', `U+${c.toString(16).toUpperCase().padStart(4, '0')}`));
+      frag.appendChild(cell);
+    }
+    grid.appendChild(frag);
+    box.appendChild(grid);
+  }
+
   host.replaceChildren(box);
-  ctx.status(`${face.style} · ${face.weight}  ·  点击示例文字可以编辑`);
-  return { searchable: true, destroy() { document.fonts.delete(face); } };
+  const status = [info.format, info.axes.length ? '可变字体' : '', face && face.style !== 'normal' ? face.style : ''];
+  if (face) status.push('点击示例文字可以编辑');
+  ctx.status(status.filter(Boolean).join('  ·  '));
+  return { searchable: true, destroy() { if (face) document.fonts.delete(face); } };
+}
+
+/* ============================== 漫画（CBZ） ============================== */
+const IMG_RE = /\.(jpe?g|png|gif|webp|avif|bmp)$/i;
+
+async function renderComic(host, src, ctx) {
+  const JSZip = await loadJSZip();
+  const zip = await JSZip.loadAsync(src.bytes);
+  const pages = Object.values(zip.files)
+    .filter((f) => !f.dir && IMG_RE.test(f.name) && !/(^|\/)(__MACOSX|\.)/.test(f.name))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  if (!pages.length) throw new Error('压缩包里没有图片');
+
+  const urls = new Map();
+  const urlOf = async (i) => {
+    if (!urls.has(i)) urls.set(i, pages[i].async('blob').then((b) => URL.createObjectURL(b)));
+    return urls.get(i);
+  };
+  const wrap = el('div', 'comic');
+  wrap.tabIndex = 0;
+  const stage = el('div', 'comic-stage');
+  const img = el('img', 'comic-page');
+  img.alt = '';
+  stage.appendChild(img);
+  const bar = el('div', 'comic-bar');
+  const prev = el('button', 'btn', '‹ 上一页');
+  const next = el('button', 'btn', '下一页 ›');
+  prev.type = next.type = 'button';
+  const label = el('span', 'comic-label');
+  const range = el('input', 'comic-range');
+  range.type = 'range';
+  range.min = '1';
+  range.max = String(pages.length);
+  bar.append(prev, label, range, next);
+  wrap.append(stage, bar);
+  host.replaceChildren(wrap);
+
+  let cur = -1;
+  const go = async (i) => {
+    i = Math.max(0, Math.min(pages.length - 1, i));
+    if (i === cur) return;
+    cur = i;
+    img.src = await urlOf(i);
+    stage.scrollTop = 0;
+    label.textContent = `${i + 1} / ${pages.length}`;
+    range.value = String(i + 1);
+    prev.disabled = i === 0;
+    next.disabled = i === pages.length - 1;
+    ctx.status(`第 ${i + 1} / ${pages.length} 页`);
+    ctx.onPosition(i ? String(i + 1) : null);
+    if (i + 1 < pages.length) urlOf(i + 1); // 预读下一页
+  };
+  prev.addEventListener('click', () => go(cur - 1));
+  next.addEventListener('click', () => go(cur + 1));
+  range.addEventListener('input', () => go(Number(range.value) - 1));
+  stage.addEventListener('click', (e) => go(cur + (e.offsetX < stage.clientWidth / 3 ? -1 : 1)));
+  wrap.addEventListener('keydown', (e) => {
+    if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+  });
+  await go((Number(ctx.at) || 1) - 1);
+  wrap.focus({ preventScroll: true });
+  return {
+    goto: (at) => go((Number(at) || 1) - 1),
+    async destroy() { for (const u of urls.values()) URL.revokeObjectURL(await u); },
+  };
+}
+
+/* ============================== iWork（Pages / Keynote / Numbers） ============================== */
+async function renderIwork(host, src, ctx) {
+  const JSZip = await loadJSZip();
+  let zip;
+  try { zip = await JSZip.loadAsync(src.bytes); } catch { throw new Error('这个 iWork 文件不是单文件格式（可能是旧版的文件包），无法预览'); }
+  // 新版文件内带有预览图：preview.jpg（大图）或 QuickLook/Thumbnail.jpg（旧版）
+  const pick = ['preview.jpg', 'QuickLook/Preview.jpg', 'QuickLook/Thumbnail.jpg', 'preview-web.jpg', 'preview-micro.jpg']
+    .map((n) => zip.file(n)).find(Boolean)
+    || Object.values(zip.files).find((f) => /(^|\/)preview[^/]*\.(jpe?g|png)$/i.test(f.name));
+  const pdf = zip.file('QuickLook/Preview.pdf');
+  const app = { pages: 'Pages 文稿', key: 'Keynote 演示文稿', numbers: 'Numbers 表格' }[src.name.split('.').pop().toLowerCase()] || 'iWork 文档';
+  const box = el('div', 'media iwork');
+  if (pdf && !pick) {
+    // 旧版带 PDF 预览：交给 PDF 渲染器
+    const bytes = await pdf.async('uint8array');
+    return renderPdf(host, { ...src, bytes }, ctx);
+  }
+  if (!pick) throw new Error('文件里没有预览图（请在「设置」中开启「保存文稿预览」后重新保存）');
+  const url = URL.createObjectURL(await pick.async('blob'));
+  const img = el('img');
+  img.src = url;
+  img.alt = `${app}预览`;
+  const fig = el('figure', 'iwork-fig');
+  fig.appendChild(img);
+  fig.appendChild(el('figcaption', null, `${app} · 这是文件内嵌的预览图（通常只有第一页 / 第一张幻灯片）`));
+  box.appendChild(fig);
+  host.replaceChildren(box);
+  img.onload = () => ctx.status(`${app}预览 · ${img.naturalWidth} × ${img.naturalHeight}`);
+  return { destroy() { URL.revokeObjectURL(url); } };
+}
+
+/* ============================== 证书（二进制 DER） ============================== */
+async function renderCert(host, src, ctx) {
+  const [{ certsFromBytes }, { renderCerts }] = await Promise.all([import('./x509.js'), import('./views/structured.js')]);
+  const box = el('div', 'doc-scroll');
+  host.replaceChildren(box);
+  await renderCerts(box, certsFromBytes(src.bytes), { stale: () => false, status: ctx.status });
+  return { searchable: true };
 }
 
 /* ============================== 入口 ============================== */
@@ -475,6 +871,9 @@ const RENDERERS = {
   audio: (h, s, c) => renderMedia(h, s, c, 'audio'),
   video: (h, s, c) => renderMedia(h, s, c, 'video'),
   font: renderFont,
+  comic: renderComic,
+  iwork: renderIwork,
+  cert: renderCert,
 };
 
 /** 音视频直接用 Blob 播放，其余类型需要读出完整字节 */

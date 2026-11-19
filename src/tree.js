@@ -15,6 +15,9 @@ const BADGE = {
 const DOC_BADGE = {
   pdf: ['PDF', '#d93025'], epub: ['EPB', '#7cb342'], docx: ['DOC', '#2b579a'], sheet: ['XLS', '#217346'],
   pptx: ['PPT', '#d24726'], audio: ['♪', '#e8590c'], video: ['▶', '#ae3ec9'], font: ['Ff', '#495057'],
+  comic: ['CBZ', '#c2255c'], iwork: ['iW', '#1c7ed6'], cert: ['🔐', '#5c7cfa'],
+  notebook: ['NB', '#f37626'], email: ['✉', '#1971c2'], calendar: ['📅', '#e03131'], contacts: ['👤', '#2f9e44'], pem: ['🔐', '#5c7cfa'],
+  archive: ['ZIP', '#7950f2'],
 };
 const CHEV = '<svg class="chev" viewBox="0 0 12 12" width="12" height="12"><path d="M4.5 2.5 8 6l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
@@ -33,6 +36,7 @@ function badgeFor(path, langOverride) {
   if (IMAGE_EXT.has(ext) || ext === 'svg') return ['IMG', '#8250df'];
   const kind = viewKind(path);
   if (DOC_BADGE[kind]) return DOC_BADGE[kind];
+  if (/\.(zip|tar|tgz|gz|rar|7z)$/i.test(path)) return DOC_BADGE.archive;
   const lang = langOverride || detectLang(path) || 'plaintext';
   return BADGE[lang] || [lang.slice(0, 2).toUpperCase(), '#6e7781'];
 }

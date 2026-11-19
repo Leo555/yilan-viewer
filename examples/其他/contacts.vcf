@@ -1,0 +1,30 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:张三
+N:张;三;;;
+ORG:一览科技;研发部
+TITLE:前端工程师
+TEL;TYPE=CELL:+86 138 0000 0000
+TEL;TYPE=WORK:010-0000 0000
+EMAIL;TYPE=INTERNET,WORK:zhangsan@example.com
+ADR;TYPE=WORK:;;中关村大街 1 号;北京;;100000;中国
+URL:https://example.com
+BDAY:1990-05-20
+NOTE:示例联系人，数据为虚构
+END:VCARD
+BEGIN:VCARD
+VERSION:4.0
+FN:Alice Chen
+N:Chen;Alice;;;
+ORG:Example Inc.
+TITLE:Product Manager
+TEL;TYPE=cell:+1 555 0100
+EMAIL:alice@example.com
+ADR;TYPE=home:;;1 Infinite Loop;Cupertino;CA;95014;USA
+END:VCARD
+BEGIN:VCARD
+VERSION:3.0
+FN:李四
+TEL;TYPE=HOME:021-0000 0000
+EMAIL:lisi@example.com
+END:VCARD

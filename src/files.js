@@ -109,6 +109,14 @@ export function decode(bytes, encoding) {
 /* ---------- 添加 ---------- */
 const skipPath = (path) => path.split('/').some((seg) => SKIP_DIRS.has(seg));
 
+/** 把列表里已有的压缩包（示例、zip 里的 tar 等）解开，加到「我的文件」 */
+export const isArchive = (path) => /\.(zip|tar|tgz|tar\.gz|gz)$/i.test(path);
+export async function extractArchive(file) {
+  const blob = await file.getBlob();
+  const name = baseName(file.path);
+  return /\.zip$/i.test(name) ? addZip(blob, name) : addTar(blob, name);
+}
+
 export async function addFromFileList(list) {
   const added = [];
   for (const file of Array.from(list)) {
@@ -118,9 +126,78 @@ export async function addFromFileList(list) {
       added.push(...await addZip(file, path));
       continue;
     }
+    if (/\.(tar|tgz|tar\.gz|gz)$/i.test(file.name)) {
+      added.push(...await addTar(file, path));
+      continue;
+    }
     added.push(addFile(path, file.size, file.lastModified, () => file));
   }
   return added;
+}
+
+/* ---------- tar / tar.gz / .gz：浏览器自带 DecompressionStream 解 gzip，tar 格式自己解析 ---------- */
+const MAX_ARCHIVE = 512 * 1024 * 1024;
+
+async function gunzip(blob) {
+  const stream = blob.stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+function tarEntries(buf) {
+  const out = [];
+  const dec = new TextDecoder();
+  const str = (o, n) => dec.decode(buf.subarray(o, o + n)).replace(/\0[\s\S]*$/, '');
+  const oct = (o, n) => parseInt(str(o, n).trim() || '0', 8);
+  let longName = null;
+  let paxPath = null;
+  for (let p = 0; p + 512 <= buf.length;) {
+    if (buf[p] === 0 && buf[p + 1] === 0) break; // 两个全 0 块表示结束
+    const size = oct(p + 124, 12);
+    const type = String.fromCharCode(buf[p + 156] || 48);
+    const prefix = str(p + 345, 155);
+    let name = longName || paxPath || (prefix ? `${prefix}/${str(p, 100)}` : str(p, 100));
+    const mtime = oct(p + 136, 12) * 1000;
+    const data = p + 512;
+    longName = null;
+    if (type !== 'x') paxPath = null;
+    if (type === 'L') longName = str(data, size); // GNU 长文件名
+    else if (type === 'x') { // PAX 扩展头：path=...
+      const m = /\d+ path=([^\n]*)\n/.exec(dec.decode(buf.subarray(data, data + size)));
+      paxPath = m ? m[1] : null;
+    } else if (type === '0' || type === '\0' || type === '7') {
+      name = name.replace(/^\.\//, '');
+      if (name && !name.endsWith('/')) out.push({ name, data: buf.subarray(data, data + size), mtime });
+    }
+    p = data + Math.ceil(size / 512) * 512;
+  }
+  return out;
+}
+
+async function addTar(blob, archivePath) {
+  try {
+    if (blob.size > MAX_ARCHIVE) throw new Error('压缩包太大');
+    const gz = /\.(tgz|gz)$/i.test(archivePath);
+    let buf = gz ? await gunzip(blob) : new Uint8Array(await blob.arrayBuffer());
+    const root = archivePath.replace(/\.(tar\.gz|tgz|tar|gz)$/i, '');
+    // 单独的 .gz（不是 tar）：解出一个文件
+    const isTar = buf.length >= 512 && new TextDecoder().decode(buf.subarray(257, 262)) === 'ustar';
+    if (gz && !isTar && !/\.(tgz|tar\.gz)$/i.test(archivePath)) {
+      const data = buf;
+      return [addFile(root, data.length, blob.lastModified || Date.now(), () => new Blob([data]))];
+    }
+    const entries = tarEntries(buf).filter((e) => !skipPath(e.name) && !/(^|\/)\._/.test(e.name));
+    buf = null;
+    const tops = new Set(entries.map((e) => e.name.split('/')[0]));
+    const single = tops.size === 1 && entries.every((e) => e.name.includes('/')) ? [...tops][0] : null;
+    const prefix = single && single === baseName(root) ? root.slice(0, root.length - single.length) : `${root}/`;
+    const out = entries.map((e) => addFile(`${prefix}${e.name}`, e.data.length, e.mtime || Date.now(), () => new Blob([e.data])));
+    if (!out.length) toast(`「${baseName(archivePath)}」里没有可预览的文件`);
+    return out;
+  } catch (err) {
+    console.warn('tar 解析失败', err);
+    toast(`无法打开压缩包「${baseName(archivePath)}」：${err.message || err}`);
+    return [];
+  }
 }
 
 async function addZip(blob, zipPath) {
@@ -200,8 +277,13 @@ export async function fetchExamples() {
   try {
     const res = await fetch('./examples/manifest.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const { files, order } = await res.json();
+    const { files, order, subOrder } = await res.json();
     if (Array.isArray(order)) state.dirOrder.set(EXAMPLES_ROOT, order.map(String));
+    if (subOrder && typeof subOrder === 'object') {
+      for (const [dir, names] of Object.entries(subOrder)) {
+        if (Array.isArray(names)) state.dirOrder.set(`${EXAMPLES_ROOT}/${dir}`, names.map(String));
+      }
+    }
     const now = Date.now();
     // 只接受普通相对路径：每段由字母、数字（含中文）、常见中文标点、. _ - 空格组成，且不能是 . 或 ..
     const safe = (p) => typeof p === 'string' && p.split('/').every((s) => /^[\p{L}\p{N}._ \-、，（）·]+$/u.test(s) && s !== '.' && s !== '..');

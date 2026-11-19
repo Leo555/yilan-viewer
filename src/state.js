@@ -12,7 +12,7 @@ export const MAX_RENDER_LINES = 200000;
 export const MAX_CSV_ROWS = 5000;
 export const SKIP_DIRS = new Set(['node_modules', '.git', '.svn', '.hg', '__pycache__', '.venv', 'venv', '.idea', '.vscode', 'dist', 'build', '.next', '.nuxt', 'target', '.gradle', 'Pods', '.DS_Store']);
 export const SIZES = [11, 12, 13, 14, 15, 16, 18, 20];
-export const PREVIEW_KINDS = ['markdown', 'csv', 'tsv', 'html', 'svg', 'json'];
+export const PREVIEW_KINDS = ['markdown', 'csv', 'tsv', 'html', 'svg', 'json', 'notebook', 'email', 'calendar', 'contacts', 'pem'];
 
 function loadSettings() {
   const def = { theme: 'auto', size: 13, wrap: false, sideW: 260, sideHidden: false };

@@ -3,12 +3,21 @@
     "文档",
     "代码",
     "纯文本",
-    "图片、视频"
+    "图片、音视频",
+    "字体",
+    "其他"
   ],
+  "subOrder": {
+    "图片、音视频": [
+      "图片",
+      "视频",
+      "音频"
+    ]
+  },
   "files": [
     {
       "path": "README.md",
-      "size": 1167
+      "size": 1822
     },
     {
       "path": "代码/backend/crawler.py",
@@ -191,32 +200,184 @@
       "size": 839
     },
     {
-      "path": "图片、视频/icon.bmp",
+      "path": "其他/analysis.ipynb",
+      "size": 21848
+    },
+    {
+      "path": "其他/comic.cbz",
+      "size": 123711
+    },
+    {
+      "path": "其他/contacts.vcf",
+      "size": 684
+    },
+    {
+      "path": "其他/demo-cert.der",
+      "size": 597
+    },
+    {
+      "path": "其他/demo-cert.pem",
+      "size": 863
+    },
+    {
+      "path": "其他/demo-project.tar.gz",
+      "size": 358
+    },
+    {
+      "path": "其他/demo.key",
+      "size": 470525
+    },
+    {
+      "path": "其他/team.ics",
+      "size": 1064
+    },
+    {
+      "path": "图片、音视频/图片/dots.apng",
+      "size": 40483
+    },
+    {
+      "path": "图片、音视频/图片/dots.webp",
+      "size": 24992
+    },
+    {
+      "path": "图片、音视频/图片/icon.bmp",
       "size": 16522
     },
     {
-      "path": "图片、视频/icon.ico",
+      "path": "图片、音视频/图片/icon.ico",
       "size": 17470
     },
     {
-      "path": "图片、视频/loading.gif",
+      "path": "图片、音视频/图片/loading.gif",
       "size": 35009
     },
     {
-      "path": "图片、视频/logo.svg",
+      "path": "图片、音视频/图片/logo.svg",
       "size": 501
     },
     {
-      "path": "图片、视频/sunrise.mp4",
-      "size": 143477
+      "path": "图片、音视频/图片/sunset-small.jpeg",
+      "size": 14449
     },
     {
-      "path": "图片、视频/sunset.jpg",
+      "path": "图片、音视频/图片/sunset.avif",
+      "size": 4190
+    },
+    {
+      "path": "图片、音视频/图片/sunset.jpg",
       "size": 50280
     },
     {
-      "path": "图片、视频/sunset.png",
+      "path": "图片、音视频/图片/sunset.png",
       "size": 143614
+    },
+    {
+      "path": "图片、音视频/图片/sunset.tiff",
+      "size": 32042
+    },
+    {
+      "path": "图片、音视频/图片/sunset.webp",
+      "size": 12246
+    },
+    {
+      "path": "图片、音视频/视频/sunrise-av1.mp4",
+      "size": 16633
+    },
+    {
+      "path": "图片、音视频/视频/sunrise.m4v",
+      "size": 24054
+    },
+    {
+      "path": "图片、音视频/视频/sunrise.mov",
+      "size": 28343
+    },
+    {
+      "path": "图片、音视频/视频/sunrise.mp4",
+      "size": 143477
+    },
+    {
+      "path": "图片、音视频/视频/sunrise.webm",
+      "size": 153796
+    },
+    {
+      "path": "图片、音视频/音频/chime.flac",
+      "size": 83170
+    },
+    {
+      "path": "图片、音视频/音频/chime.m4a",
+      "size": 37673
+    },
+    {
+      "path": "图片、音视频/音频/chime.mp3",
+      "size": 36719
+    },
+    {
+      "path": "图片、音视频/音频/chime.ogg",
+      "size": 9990
+    },
+    {
+      "path": "图片、音视频/音频/chime.opus",
+      "size": 21103
+    },
+    {
+      "path": "图片、音视频/音频/chime.wav",
+      "size": 132378
+    },
+    {
+      "path": "字体/Inter-and-WenKai.ttc",
+      "size": 157804
+    },
+    {
+      "path": "字体/Inter-Bold.eot",
+      "size": 68210
+    },
+    {
+      "path": "字体/Inter-Bold.ttf",
+      "size": 67988
+    },
+    {
+      "path": "字体/Inter-Bold.woff",
+      "size": 31320
+    },
+    {
+      "path": "字体/Inter-Italic.otf",
+      "size": 112936
+    },
+    {
+      "path": "字体/Inter-Regular.woff2",
+      "size": 23664
+    },
+    {
+      "path": "字体/LiberationSans-Bold.ttf",
+      "size": 137052
+    },
+    {
+      "path": "字体/LICENSE-OFL.txt",
+      "size": 32367
+    },
+    {
+      "path": "字体/LXGWWenKai-Regular.ttf",
+      "size": 89796
+    },
+    {
+      "path": "字体/RobotoFlex-wght.ttf",
+      "size": 27196
+    },
+    {
+      "path": "字体/SourceCodePro-Regular.otf",
+      "size": 131128
+    },
+    {
+      "path": "字体/SourceSerif4-Regular.otf",
+      "size": 241392
+    },
+    {
+      "path": "文档/demo.numbers",
+      "size": 137092
+    },
+    {
+      "path": "文档/demo.pages",
+      "size": 95809
     },
     {
       "path": "文档/novel.epub",
@@ -239,16 +400,44 @@
       "size": 2044
     },
     {
+      "path": "文档/weekly-report.eml",
+      "size": 8788
+    },
+    {
+      "path": "纯文本/access.log",
+      "size": 1121
+    },
+    {
       "path": "纯文本/books.tsv",
       "size": 210
+    },
+    {
+      "path": "纯文本/CHANGELOG",
+      "size": 569
     },
     {
       "path": "纯文本/euler.tex",
       "size": 594
     },
     {
+      "path": "纯文本/events.jsonl",
+      "size": 525
+    },
+    {
+      "path": "纯文本/gbk编码.txt",
+      "size": 183
+    },
+    {
       "path": "纯文本/intro.srt",
       "size": 262
+    },
+    {
+      "path": "纯文本/intro.vtt",
+      "size": 382
+    },
+    {
+      "path": "纯文本/orders.csv",
+      "size": 453
     },
     {
       "path": "纯文本/poem.txt",
@@ -259,12 +448,28 @@
       "size": 680
     },
     {
+      "path": "纯文本/references.bib",
+      "size": 561
+    },
+    {
       "path": "纯文本/server.log",
       "size": 1170
     },
     {
+      "path": "纯文本/utf16编码.txt",
+      "size": 134
+    },
+    {
       "path": "纯文本/weather.csv",
       "size": 349
+    },
+    {
+      "path": "纯文本/城市.json",
+      "size": 1344
+    },
+    {
+      "path": "纯文本/读书笔记.md",
+      "size": 990
     }
   ]
 }

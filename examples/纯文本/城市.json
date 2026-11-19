@@ -1,0 +1,48 @@
+{
+  "updatedAt": "2026-11-19T10:00:00+08:00",
+  "source": "示例数据，仅用于演示 JSON 树形浏览",
+  "count": 4,
+  "cities": [
+    {
+      "name": "北京",
+      "province": null,
+      "population": 21893095,
+      "area_km2": 16410.54,
+      "coastal": false,
+      "location": { "lat": 39.9042, "lng": 116.4074 },
+      "districts": ["东城", "西城", "朝阳", "海淀"],
+      "tags": []
+    },
+    {
+      "name": "上海",
+      "province": null,
+      "population": 24870895,
+      "area_km2": 6340.5,
+      "coastal": true,
+      "location": { "lat": 31.2304, "lng": 121.4737 },
+      "districts": ["黄浦", "徐汇", "浦东新区"],
+      "tags": ["港口", "金融"]
+    },
+    {
+      "name": "成都",
+      "province": "四川",
+      "population": 20937757,
+      "area_km2": 14335,
+      "coastal": false,
+      "location": { "lat": 30.5728, "lng": 104.0668 },
+      "districts": ["锦江", "青羊", "武侯"],
+      "tags": ["美食", "熊猫"]
+    },
+    {
+      "name": "厦门",
+      "province": "福建",
+      "population": 5163970,
+      "area_km2": 1700.61,
+      "coastal": true,
+      "location": { "lat": 24.4798, "lng": 118.0894 },
+      "districts": ["思明", "湖里", "集美"],
+      "tags": ["海岛"],
+      "note": "字符串里可以有 \"引号\"、\\反斜杠 和 \n 换行"
+    }
+  ]
+}

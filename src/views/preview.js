@@ -11,6 +11,12 @@ export function renderImage(content, blob, name, onSize) {
   img.alt = baseName(name);
   img.decoding = 'async';
   img.onload = () => onSize(`${img.naturalWidth} × ${img.naturalHeight}`);
+  // TIFF / HEIC 等只有部分浏览器（Safari）能显示
+  img.onerror = () => {
+    const ext = name.split('.').pop().toUpperCase();
+    wrap.replaceChildren(el('div', 'doc-empty', `当前浏览器不支持显示 ${ext} 图片，可以下载后查看，或换用 Safari 打开。`));
+    onSize('');
+  };
   img.src = viewUrl(blob);
   wrap.appendChild(img);
   content.replaceChildren(wrap);
@@ -97,17 +103,33 @@ function parseCsv(text, delim, maxRows) {
   return { rows, truncated };
 }
 
+/** 统计前若干条记录里每种分隔符的个数（跳过引号内的内容），选每行个数一致且最多的那个 */
 function guessDelimiter(text) {
-  const head = text.slice(0, 5000).split(/\r?\n/).slice(0, 10);
+  const CANDS = [',', ';', '\t', '|'];
+  const records = [];
+  let counts = [0, 0, 0, 0];
+  let q = false;
+  const end = Math.min(text.length, 20000);
+  for (let i = 0; i < end && records.length < 20; i++) {
+    const c = text[i];
+    if (c === '"') q = !q;
+    else if (q) continue;
+    else if (c === '\n') { records.push(counts); counts = [0, 0, 0, 0]; }
+    else {
+      const k = CANDS.indexOf(c);
+      if (k >= 0) counts[k]++;
+    }
+  }
+  if (counts.some((n) => n > 0)) records.push(counts);
   let best = ',';
   let bestScore = -1;
-  for (const d of [',', ';', '\t', '|']) {
-    const counts = head.map((l) => l.split(d).length - 1).filter((n) => n > 0);
-    if (!counts.length) continue;
-    const consistent = counts.every((n) => n === counts[0]);
-    const score = (consistent ? 1000 : 0) + counts[0];
+  CANDS.forEach((d, k) => {
+    const per = records.map((r) => r[k]);
+    if (!per[0]) return;
+    const consistent = per.filter((n) => n === per[0]).length / per.length;
+    const score = consistent * 1000 + per[0];
     if (score > bestScore) { bestScore = score; best = d; }
-  }
+  });
   return best;
 }
 

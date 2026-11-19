@@ -5,7 +5,8 @@
  * - files: 完整文件名（不区分大小写）
  */
 export const LANGS = [
-  { id: 'plaintext', name: '纯文本', ext: ['txt', 'text', 'csv', 'tsv', 'tab', 'srt', 'vtt', 'sub', 'nfo', 'asc'],
+  { id: 'plaintext', name: '纯文本', ext: ['txt', 'text', 'csv', 'tsv', 'tab', 'srt', 'vtt', 'sub', 'nfo', 'asc',
+    'eml', 'ics', 'ifb', 'vcf', 'vcard', 'pem', 'crt', 'cer', 'csr', 'pub'],
     files: ['license', 'licence', 'copying', 'authors', 'contributors', 'notice', 'changelog', 'changes', 'history',
       'todo', 'readme', 'codeowners', '.gitignore', '.dockerignore', '.npmignore', '.eslintignore', '.prettierignore',
       '.gitattributes', '.gitmodules', '.nvmrc', '.node-version', '.python-version', '.ruby-version', 'go.sum',
@@ -138,26 +139,36 @@ export function detectLang(path) {
   return null;
 }
 
-export const IMAGE_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'ico']);
+export const IMAGE_EXT = new Set(['png', 'apng', 'jpg', 'jpeg', 'jfif', 'pjpeg', 'gif', 'webp', 'avif', 'bmp', 'ico', 'cur', 'tif', 'tiff', 'heic', 'heif']);
 const MD_EXT = new Set(['md', 'markdown', 'mdown', 'mkd', 'mdx']);
 const HTML_EXT = new Set(['html', 'htm', 'xhtml']);
-const JSON_EXT = new Set(['json', 'geojson', 'webmanifest', 'har', 'ipynb', 'map']);
+const JSON_EXT = new Set(['json', 'geojson', 'webmanifest', 'har', 'map']);
+/** 文本格式但有专门的结构化预览（可切换「预览 / 源码」） */
+const STRUCT_EXT = {
+  ipynb: 'notebook', eml: 'email', ics: 'calendar', ifb: 'calendar', vcf: 'contacts', vcard: 'contacts',
+  pem: 'pem', pub: 'pem', csr: 'pem',
+};
 
 /** 文档 / 媒体类：不按文本读取，由专门的渲染器预览 */
 const DOC_EXT = {
   pdf: ['pdf'],
   epub: ['epub'],
   docx: ['docx', 'docm', 'dotx'],
-  sheet: ['xlsx', 'xlsm', 'xlsb', 'xls', 'ods', 'numbers'],
+  sheet: ['xlsx', 'xlsm', 'xlsb', 'xls', 'ods'],
   pptx: ['pptx', 'pptm', 'ppsx', 'potx'],
   audio: ['mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac', 'opus', 'weba'],
-  video: ['mp4', 'm4v', 'webm', 'ogv', 'mov'],
-  font: ['ttf', 'otf', 'woff', 'woff2'],
+  video: ['mp4', 'm4v', 'webm', 'ogv', 'mov', 'mkv'],
+  font: ['ttf', 'otf', 'ttc', 'otc', 'woff', 'woff2', 'eot'],
+  comic: ['cbz'],
+  iwork: ['pages', 'key', 'numbers'],
+  // .crt / .cer 可能是 PEM 文本也可能是二进制 DER；.key 可能是 Keynote 也可能是 PEM 私钥：打开时按内容判断
+  cert: ['der', 'crt', 'cer'],
 };
 const docByExt = new Map(Object.entries(DOC_EXT).flatMap(([k, list]) => list.map((e) => [e, k])));
 export const DOC_KINDS = new Set(Object.keys(DOC_EXT));
 export const DOC_NAMES = {
   pdf: 'PDF', epub: 'EPUB', docx: 'Word 文档', sheet: '电子表格', pptx: '演示文稿', audio: '音频', video: '视频', font: '字体',
+  comic: '漫画', iwork: 'iWork 文档', cert: '证书',
 };
 
 /** 文件除了源码外还支持的预览方式 */
@@ -165,6 +176,7 @@ export function viewKind(path) {
   const ext = extOf(path);
   if (IMAGE_EXT.has(ext)) return 'image';
   if (docByExt.has(ext)) return docByExt.get(ext);
+  if (STRUCT_EXT[ext]) return STRUCT_EXT[ext];
   if (MD_EXT.has(ext)) return 'markdown';
   if (ext === 'csv') return 'csv';
   if (ext === 'tsv' || ext === 'tab') return 'tsv';

@@ -7,7 +7,7 @@ import { $, $$, clamp, el, toast, formatSize, countLines, revokeViewUrls, idle }
 import { LANGS, langById, detectLang, viewKind, baseName, DOC_KINDS, DOC_NAMES } from './languages.js';
 import {
   getFile, findByPath, removeFiles, readBytes, looksBinary, decode,
-  addFromFileList, addFromDataTransfer, addText, fetchExamples, pickFirst,
+  addFromFileList, addFromDataTransfer, addText, fetchExamples, pickFirst, isArchive, extractArchive,
 } from './files.js';
 import { initTree, renderTree, revealInTree, refreshTreeBadge, setActiveRow, visibleFileIds, GROUPS } from './tree.js';
 import { autoDetect } from './detect.js';
@@ -133,8 +133,17 @@ async function openFile(id, opts = {}) {
   revealInTree(file, { scroll: false });
   closeFind();
 
-  const kind = viewKind(file.path);
+  let kind = viewKind(file.path);
   const cur = { file, kind, text: null, lang: null, encoding: opts.encoding || 'auto', mode: 'code', binary: false, tooBig: false, at: opts.at || null };
+
+  // 同一扩展名、不同内容：.crt / .cer 可能是 PEM 文本，.key 可能是 PEM 私钥（而不是 Keynote）
+  if ((kind === 'cert' || (kind === 'iwork' && /\.key$/i.test(file.path))) && file.size < MAX_TEXT) {
+    try {
+      const head = await readBytes(file);
+      if (token !== state.openToken) return;
+      if (!looksBinary(head) && /-----BEGIN /.test(decode(head.subarray(0, 4096), 'auto').text)) kind = cur.kind = 'pem';
+    } catch { /* 读不了就按原类型处理，交给后面的渲染器报错 */ }
+  }
 
   if (kind === 'image') {
     cur.mode = 'preview';
@@ -160,7 +169,9 @@ async function openFile(id, opts = {}) {
         if (file.pasted) refreshTreeBadge(file);
         cur.mode = PREVIEW_KINDS.includes(kind) ? 'preview' : 'code';
         // 超大 JSON 生成树会很慢，直接看源码
+        if ((kind === 'json' || kind === 'notebook') && cur.text.length > 20 * 1024 * 1024) cur.mode = 'code';
         if (kind === 'json' && cur.text.length > 2 * 1024 * 1024) cur.mode = 'code';
+        if (kind === 'email') cur.bytes = bytes; // 邮件按原始字节解析（各部分可能是不同编码）
       }
     } catch (err) {
       if (token !== state.openToken) return;
@@ -292,6 +303,11 @@ async function renderCurrent() {
       renderImage(content, blob, cur.file.path, (size) => { if (!stale()) updateStatus(size); });
     } else if (cur.tooBig) {
       message(content, `文件太大（${formatSize(cur.file.size)}），超过 ${formatSize(cur.doc ? MAX_DOC : MAX_TEXT)} 的文件不在页面里显示。`);
+    } else if (cur.binary && isArchive(cur.file.path)) {
+      message(content, '这是一个压缩包，解压后可以逐个浏览里面的文件（在浏览器里解压，不会上传）。', ['解压到「我的文件」', async () => {
+        const added = await extractArchive(cur.file);
+        if (added.length) await afterAdd(added);
+      }]);
     } else if (cur.binary) {
       message(content, '这看起来是二进制文件，无法以文本显示。', ['仍然以文本打开', () => openFile(cur.file.id, { forceText: true })]);
     } else if (cur.mode === 'preview') {
@@ -304,6 +320,16 @@ async function renderCurrent() {
       } else if (cur.kind === 'csv' || cur.kind === 'tsv') renderCsv(content, cur.text, cur.kind === 'tsv' ? '\t' : null);
       else if (cur.kind === 'html' || cur.kind === 'svg') renderHtmlFrame(content, cur.text, cur.kind);
       else if (cur.kind === 'json') renderJsonTree(content, cur.text, () => setMode('code'));
+      else {
+        const sv = await import('./views/structured.js');
+        if (stale()) return;
+        const ctx = { stale, status: (t) => { if (!stale()) { cur.statusText = t; updateStatus(); } } };
+        if (cur.kind === 'notebook') await sv.renderNotebook(content, cur.text, ctx);
+        else if (cur.kind === 'email') await sv.renderEmail(content, cur.bytes, ctx);
+        else if (cur.kind === 'calendar') sv.renderCalendar(content, cur.text, ctx);
+        else if (cur.kind === 'contacts') sv.renderContacts(content, cur.text, ctx);
+        else if (cur.kind === 'pem') await sv.renderPem(content, cur.text, ctx);
+      }
     } else {
       await renderCode(content, cur, {
         wrap: state.settings.wrap,
