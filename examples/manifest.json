@@ -325,55 +325,55 @@
     },
     {
       "path": "media/images/sunset-small.jpeg",
-      "size": 14449
+      "size": 14488
     },
     {
       "path": "media/images/sunset.avif",
-      "size": 4190
+      "size": 4342
     },
     {
       "path": "media/images/sunset.jpg",
-      "size": 50280
+      "size": 50559
     },
     {
       "path": "media/images/sunset.png",
-      "size": 143614
+      "size": 144185
     },
     {
       "path": "media/images/sunset.tiff",
-      "size": 32042
+      "size": 32341
     },
     {
       "path": "media/images/sunset.webp",
-      "size": 12246
+      "size": 12438
     },
     {
       "path": "media/videos/sunrise-av1.mp4",
-      "size": 16633
+      "size": 16491
     },
     {
       "path": "media/videos/sunrise.m4v",
-      "size": 24054
+      "size": 24235
     },
     {
       "path": "media/videos/sunrise.mov",
-      "size": 28343
+      "size": 28293
     },
     {
       "path": "media/videos/sunrise.mp4",
-      "size": 143477
+      "size": 143885
     },
     {
       "path": "media/videos/sunrise.webm",
-      "size": 153796
+      "size": 153889
     },
     {
       "path": "misc/analysis.ipynb",
-      "size": 21848
+      "size": 21900
     },
     {
       "path": "misc/comic.cbz",
-      "size": 123711
+      "size": 123990
     },
     {
       "path": "misc/contacts.vcf",
@@ -381,7 +381,7 @@
     },
     {
       "path": "misc/demo-cert.der",
-      "size": 597
+      "size": 596
     },
     {
       "path": "misc/demo-cert.pem",

@@ -1,5 +1,10 @@
-.testdata
-node_modules
-scripts
-package.json
-package-lock.json
+# 只排除项目根目录下的这些文件/目录。
+# 不加前导 / 会匹配任意层级的同名项，误伤 examples/code/scripts/ 和 examples/code/config/package.json。
+/.testdata/
+/node_modules/
+/scripts/
+/package.json
+/package-lock.json
+# 兜底：显式放行 examples/ 下的同名文件，避免部署工具对 / 锚定的实现差异
+!examples/code/scripts/**
+!examples/code/config/package.json
