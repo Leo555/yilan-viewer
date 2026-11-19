@@ -275,9 +275,20 @@ export function addText(text, name) {
 /** 内置示例：按 examples/manifest.json 列出，点开时才拉取内容 */
 export async function fetchExamples() {
   try {
-    const res = await fetch('./examples/manifest.json', { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const { files, order, subOrder } = await res.json();
+    const read = async (url) => {
+      const res = await fetch(url, { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    };
+    let data = await read('./examples/manifest.json');
+    // 部署改名后，CDN 或旧版 Service Worker 可能仍返回旧版中文清单；当前只接受 ASCII 路径，
+    // 会把 113 个文件全部过滤掉，只剩 README.md。检测到旧清单就加随机参数绕过缓存重取一次。
+    const legacy = (d) => d?.files?.some((f) => /[^\x00-\x7F]/.test(f.path)) || d?.order?.some((s) => /[^\x00-\x7F]/.test(s));
+    if (legacy(data)) {
+      console.warn('示例清单是旧版本，正在绕过缓存重新获取');
+      data = await read(`./examples/manifest.json?v=${Date.now()}`);
+    }
+    const { files, order, subOrder } = data;
     if (Array.isArray(order)) state.dirOrder.set(EXAMPLES_ROOT, order.map(String));
     if (subOrder && typeof subOrder === 'object') {
       for (const [dir, names] of Object.entries(subOrder)) {
