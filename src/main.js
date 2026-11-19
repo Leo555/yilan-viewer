@@ -7,7 +7,7 @@ import { $, $$, clamp, el, toast, formatSize, countLines, revokeViewUrls, idle }
 import { LANGS, langById, detectLang, viewKind, baseName, DOC_KINDS, DOC_NAMES } from './languages.js';
 import {
   getFile, findByPath, removeFiles, readBytes, looksBinary, decode,
-  addFromFileList, addFromDataTransfer, addText, fetchExamples, pickFirst, isArchive, extractArchive,
+  addFromFileList, addFromDataTransfer, addText, fetchExamples, pickFirst, isArchive, extractArchive, prefetchIdle,
 } from './files.js';
 import { initTree, renderTree, revealInTree, refreshTreeBadge, setActiveRow, visibleFileIds, GROUPS } from './tree.js';
 import { autoDetect } from './detect.js';
@@ -19,6 +19,11 @@ import { loadHljs } from './libs.js';
 
 let docMod = null;
 const loadDocViewers = () => (docMod ||= import('./docviewers.js').catch((e) => { docMod = null; throw e; }));
+
+/* ============================== Service Worker（静态资源持久缓存） ============================== */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  navigator.serviceWorker.register('./sw.js').catch(() => { /* 注册失败不影响使用 */ });
+}
 
 /* ============================== 主题 / 字号 ============================== */
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
@@ -68,7 +73,7 @@ async function loadExamples({ open = true } = {}) {
     renderTree(); // 显示「正在加载示例…」
   }
   const added = await examplesLoading;
-  if (open) state.closedGroups.delete('example');
+  prefetchIdle(added); // 空闲时后台预取小示例，点开即秒开
   // 示例目录默认折叠，只展开打开的 README 所在的那一层
   if (open && added.length) await afterAdd(added, { expand: false, quiet: true });
   else renderTree();
