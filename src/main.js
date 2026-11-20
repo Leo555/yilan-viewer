@@ -7,7 +7,7 @@ import { $, $$, clamp, el, toast, formatSize, countLines, revokeViewUrls, idle }
 import { LANGS, langById, detectLang, viewKind, baseName, DOC_KINDS, DOC_NAMES } from './languages.js';
 import {
   getFile, findByPath, removeFiles, readBytes, looksBinary, decode,
-  addFromFileList, addFromDataTransfer, addText, fetchExamples, pickFirst, isArchive, extractArchive, prefetchIdle,
+  addFromFileList, addFromDataTransfer, addText, fetchExamples, pickFirst, isArchive, extractArchive,
 } from './files.js';
 import { initTree, renderTree, revealInTree, refreshTreeBadge, setActiveRow, visibleFileIds, GROUPS } from './tree.js';
 import { autoDetect } from './detect.js';
@@ -73,7 +73,7 @@ async function loadExamples({ open = true } = {}) {
     renderTree(); // 显示「正在加载示例…」
   }
   const added = await examplesLoading;
-  prefetchIdle(added); // 空闲时后台预取小示例，点开即秒开
+  // 不再做全量预取：首次进入只拉清单，文件内容等鼠标悬浮或点击时再取
   // 示例目录默认折叠，只展开打开的 README 所在的那一层
   if (open && added.length) await afterAdd(added, { expand: false, quiet: true });
   else renderTree();
@@ -143,6 +143,7 @@ async function openFile(id, opts = {}) {
   $('#file-meta').textContent = file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : '';
   revealInTree(file, { scroll: false });
   closeFind();
+  scheduleLoading(token); // 读字节、识别语言、加载渲染器期间给出反馈
 
   let kind = viewKind(file.path);
   const cur = { file, kind, text: null, lang: null, encoding: opts.encoding || 'auto', mode: 'code', binary: false, tooBig: false, at: opts.at || null };
@@ -204,6 +205,7 @@ async function openFile(id, opts = {}) {
 /* ============================== 工具栏 / 状态栏 ============================== */
 function showWelcome() {
   renderSeq++;
+  hideLoading();
   destroyDoc();
   revokeViewUrls();
   state.activeId = null;
@@ -272,6 +274,49 @@ function updateStatus(extra = '') {
   $('#st-right').textContent = right.join('  ·  ');
 }
 
+/* ============================== 加载提示 ==============================
+ * 数据未返回时盖住阅读区，避免停在「上一个文件」的内容上让人以为卡住。
+ * 用浮层而不是改写 #content：文档渲染器的 doc-host / iframe 依赖 content 的尺寸与 class。
+ */
+let loadingTimer = 0;
+function positionLoading() {
+  const box = $('#view-loading');
+  if (!box) return; // 新 JS 配旧缓存的 HTML 时不报错
+  const r = $('#viewer').getBoundingClientRect();
+  Object.assign(box.style, {
+    top: `${r.top}px`, left: `${r.left}px`, width: `${r.width}px`, height: `${r.height}px`,
+  });
+}
+function showLoading(text = '正在打开…') {
+  const box = $('#view-loading');
+  if (!box) return;
+  const label = $('#view-loading-text');
+  if (label) label.textContent = text;
+  positionLoading();
+  box.hidden = false;
+}
+function cancelLoading() {
+  if (loadingTimer) { clearTimeout(loadingTimer); loadingTimer = 0; }
+}
+function hideLoading() {
+  cancelLoading();
+  const box = $('#view-loading');
+  if (box) box.hidden = true;
+}
+/** 延迟显示：本地文件 / 已缓存内容瞬间完成时不会闪一下 */
+function scheduleLoading(token, text = '正在打开…') {
+  cancelLoading();
+  loadingTimer = setTimeout(() => {
+    loadingTimer = 0;
+    if (token !== state.openToken) return; // 期间已切换到别的文件
+    showLoading(text);
+  }, 120);
+}
+/** 渲染结束时收起；过期任务不能收起新任务正在显示的提示 */
+function finishLoading(token) {
+  if (token === state.openToken) hideLoading();
+}
+
 /* ============================== 渲染 ============================== */
 let renderSeq = 0; // 每次渲染自增：切换文件或视图时，过期的异步渲染结果直接丢弃
 
@@ -291,6 +336,7 @@ function message(content, text, button) {
 async function renderCurrent() {
   const cur = state.current;
   if (!cur) return;
+  const token = state.openToken;
   const seq = ++renderSeq;
   const stale = () => seq !== renderSeq || state.current !== cur;
   destroyDoc();
@@ -357,8 +403,10 @@ async function renderCurrent() {
     if (stale()) return;
     console.warn('预览失败', err);
     message(content, `无法预览这个文件：${err?.message || err}`, ['下载文件', download]);
+  } finally {
+    if (!stale()) updateStatus();
+    finishLoading(token); // 内容写入（或错误提示）之后再收起
   }
-  if (!stale()) updateStatus();
 }
 
 function destroyDoc() {
@@ -548,6 +596,8 @@ function buildLangSelect() {
 function applySidebar() {
   document.documentElement.style.setProperty('--side-w', `${state.settings.sideW}px`);
   $('#app').classList.toggle('side-hidden', state.settings.sideHidden);
+  const box = $('#view-loading');
+  if (box && !box.hidden) positionLoading();
 }
 
 function bindResizer() {
@@ -724,6 +774,10 @@ function bindEvents() {
   });
 
   bindResizer();
+  window.addEventListener('resize', () => {
+    const box = $('#view-loading');
+    if (box && !box.hidden) positionLoading();
+  });
   window.addEventListener('popstate', () => applyRoute(restoreRoute));
 }
 

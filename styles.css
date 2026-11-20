@@ -400,6 +400,30 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .doc-loading { padding: 80px 24px; text-align: center; color: var(--muted); }
 .doc-empty { color: var(--muted); padding: 24px; text-align: center; }
 
+/* 加载提示：浮在阅读区上方，位置和大小由 JS 按 #viewer 的可视区域设置 */
+.view-loading {
+  position: fixed;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+.loading-spin {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: yilan-spin .8s linear infinite;
+}
+@keyframes yilan-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .loading-spin { animation-duration: 2s; } }
+
 /* PDF：容器必须绝对定位（pdf.js 要求） */
 .pdf-container {
   position: absolute;

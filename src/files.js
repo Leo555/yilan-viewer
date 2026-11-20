@@ -318,38 +318,10 @@ export async function fetchExamples() {
   }
 }
 
-/** 预取示例文件（只对较小的文件），结果缓存在 getBlob 内 */
+/** 鼠标悬浮时预取单个示例文件（只对小文件）；结果缓存在 getBlob 内，点击时直接复用 */
 export function prefetch(f) {
   if (!f.example || bytesCache.has(f.id) || f.size > 2 * 1024 * 1024) return;
   f.getBlob().catch(() => {});
-}
-
-/** 空闲时后台预取全部较小的示例文件，让「首次点开」也接近秒开 */
-export function prefetchIdle(files) {
-  const conn = navigator.connection;
-  if (conn && (conn.saveData || /(^|\b)2g\b/i.test(conn.effectiveType || ''))) return;
-  const list = files.filter((f) => f.example && !bytesCache.has(f.id) && f.size <= 2 * 1024 * 1024);
-  if (!list.length) return;
-
-  const BUDGET = 16 * 1024 * 1024; // 后台预取总量上限
-  let i = 0;
-  let used = 0;
-  const step = () => {
-    // 每次空闲切片只发起 2 个请求，避免抢占用户当前操作的网络
-    let n = 0;
-    while (i < list.length && n < 2) {
-      const f = list[i++];
-      if (bytesCache.has(f.id) || used + f.size > BUDGET) continue;
-      used += f.size;
-      n++;
-      f.getBlob().catch(() => {});
-    }
-    if (i < list.length) schedule();
-  };
-  const schedule = () => {
-    ('requestIdleCallback' in window ? requestIdleCallback(step, { timeout: 3000 }) : setTimeout(step, 800));
-  };
-  schedule();
 }
 
 /** 一次添加多个文件时优先打开 README / index 等 */

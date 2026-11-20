@@ -163,6 +163,11 @@
   </div>
 </div>
 
+<!-- 内容加载中：覆盖阅读区，不改动 #content 的内容，避免与 doc-host / iframe 的布局冲突 -->
+<div id="view-loading" class="view-loading" hidden role="status" aria-live="polite">
+  <span class="loading-spin" aria-hidden="true"></span><span id="view-loading-text">正在打开…</span>
+</div>
+
 <div id="drop-overlay" class="drop-overlay" hidden><div>松开以打开</div></div>
 <div id="toast" class="toast" hidden></div>
 

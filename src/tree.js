@@ -259,10 +259,11 @@ export function initTree(h, isExamplesLoading) {
     if (e.key !== 'Enter' || !(e.target instanceof Element) || !e.target.matches('.tree-row.file')) return;
     handlers.open(Number(e.target.dataset.id));
   });
-  // 示例文件在鼠标悬停时就开始下载，点下去时多半已经到了
+  // 示例文件在鼠标悬浮时就开始下载，点下去时多半已经到了；同一行内移动不重复处理
   tree.addEventListener('pointerover', (e) => {
     const row = e.target instanceof Element ? e.target.closest('.tree-row.file') : null;
-    const f = row && getFile(Number(row.dataset.id));
+    if (!row || (e.relatedTarget instanceof Node && row.contains(e.relatedTarget))) return;
+    const f = getFile(Number(row.dataset.id));
     if (f) prefetch(f);
   });
   // 筛选：输入停顿后再重建，大目录下逐字重建会卡
