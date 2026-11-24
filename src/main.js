@@ -7,7 +7,7 @@ import { $, $$, clamp, el, toast, formatSize, countLines, revokeViewUrls, idle }
 import { LANGS, langById, detectLang, viewKind, baseName, DOC_KINDS, DOC_NAMES } from './languages.js';
 import {
   getFile, findByPath, removeFiles, readBytes, looksBinary, decode,
-  addFromFileList, addFromDataTransfer, addText, fetchExamples, pickFirst, isArchive, extractArchive,
+  addFromFileList, addFromDataTransfer, addText, fetchExamples, pickFirst, isArchive, extractArchive, addStored,
 } from './files.js';
 import { initTree, renderTree, revealInTree, refreshTreeBadge, setActiveRow, visibleFileIds, GROUPS } from './tree.js';
 import { autoDetect } from './detect.js';
@@ -16,6 +16,7 @@ import { renderImage, renderMarkdown, renderCsv, renderHtmlFrame, renderJsonTree
 import { canFind, openFind, closeFind, runFind, findOpen, bindFind } from './find.js';
 import { syncRoute, applyRoute } from './route.js';
 import { loadHljs } from './libs.js';
+import { listSaved, saveFile, clearSaved } from './store.js';
 
 let docMod = null;
 const loadDocViewers = () => (docMod ||= import('./docviewers.js').catch((e) => { docMod = null; throw e; }));
@@ -116,6 +117,7 @@ function removeGroup(id) {
   const g = GROUPS.find((x) => x.id === id);
   const removed = removeFiles(g.match);
   if (!removed.length) return;
+  if (id === 'mine') clearSaved(); // 一并清掉浏览器里保存的文件
   const activeRemoved = removed.some((f) => f.id === state.activeId);
   afterRemove(activeRemoved, activeRemoved ? state.files.find((f) => !f.example) : null);
   toast(`已移除 ${removed.length} 个${id === 'example' ? '示例' : '文件'}`);
@@ -198,8 +200,15 @@ async function openFile(id, opts = {}) {
   if (token !== state.openToken) return;
   if (opts.line && cur.mode === 'code') jumpToLine(opts.line);
   syncRoute();
+  await persistOpened(file); // 本机文件存进浏览器，刷新后仍在「我的文件」里
   // 新内容渲染完后再把侧边栏滚到当前文件（此时布局已经算好，不会额外卡顿）
   requestAnimationFrame(() => { if (state.activeId === id) revealInTree(file, { expand: false }); });
+}
+
+/** 打开过的本机文件写进 IndexedDB；示例不占存储，失败不影响当前预览 */
+async function persistOpened(file) {
+  if (file.example) return;
+  try { await saveFile(file); } catch (err) { console.warn('无法保存到浏览器', err); }
 }
 
 /* ============================== 工具栏 / 状态栏 ============================== */
@@ -782,14 +791,30 @@ function bindEvents() {
 }
 
 /* ============================== 启动 ============================== */
-function boot() {
+/** 启动时把浏览器里保存的文件放回「我的文件」：只读元数据，内容按需加载，不影响首屏 */
+async function restoreSaved() {
+  try {
+    const entries = await listSaved();
+    if (!entries.length) return;
+    for (const entry of entries) {
+      const f = addStored(entry);
+      // 展开文件所在的目录，刷新后不用一层层点开才看得到
+      const parts = f.path.split('/');
+      for (let i = 1, dir = parts[0]; i < parts.length; dir += `/${parts[i]}`, i++) state.openDirs.add(dir);
+    }
+    renderTree();
+  } catch (err) { console.warn('恢复「我的文件」失败', err); }
+}
+
+async function boot() {
   buildLangSelect();
   applyTheme();
   applyFontSize();
   applySidebar();
   bindEvents();
   renderTree();
-  // 先恢复路由（示例链接会自己加载示例），再在后台列出示例
+  await restoreSaved(); // 先恢复「我的文件」，指向本机文件的链接才能命中
+  // 再恢复路由（示例链接会自己加载示例），然后在后台列出示例
   applyRoute(restoreRoute).finally(preloadExamples);
   // 空闲时预热语法高亮库，第一次打开代码文件时无需等待
   idle(() => loadHljs().catch(() => {}));

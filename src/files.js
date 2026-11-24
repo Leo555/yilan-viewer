@@ -3,6 +3,7 @@ import { state, EXAMPLES_ROOT, SKIP_DIRS } from './state.js';
 import { baseName } from './languages.js';
 import { toast } from './util.js';
 import { loadJSZip } from './libs.js';
+import { getSavedBlob, deleteSaved } from './store.js';
 
 /* ---------- 索引：按 id / 路径 O(1) 查找，避免大目录下反复线性扫描 ---------- */
 let nextId = 1;
@@ -21,6 +22,7 @@ export function addFile(path, size, mtime, getBlob, { example = false } = {}) {
   const existing = findByPath(path, example);
   if (existing) {
     Object.assign(existing, { size, mtime, getBlob });
+    existing.saved = false; // 内容变了，下次打开要重新写进浏览器存储
     dropBytes(existing.id);
     return existing;
   }
@@ -31,7 +33,7 @@ export function addFile(path, size, mtime, getBlob, { example = false } = {}) {
   return f;
 }
 
-/** 按条件移除文件，返回被移除的列表 */
+/** 按条件移除文件，返回被移除的列表；本机文件同时从浏览器存储里删掉 */
 export function removeFiles(pred) {
   const removed = [];
   state.files = state.files.filter((f) => {
@@ -42,7 +44,18 @@ export function removeFiles(pred) {
     dropBytes(f.id);
     return false;
   });
+  const paths = removed.filter((f) => !f.example).map((f) => f.path);
+  if (paths.length) deleteSaved(paths);
   return removed;
+}
+
+/** 恢复浏览器里保存的本机文件：只加入列表，内容等打开时才从 IndexedDB 取 */
+export function addStored(entry) {
+  const f = addFile(entry.path, entry.size, entry.mtime, () => getSavedBlob(entry.path));
+  f.lang = entry.lang || undefined;
+  f.pasted = !!entry.pasted;
+  f.saved = true;
+  return f;
 }
 
 /* ---------- 读取：字节缓存按 LRU 控制总量，避免打开过的大文件一直占着内存 ---------- */
