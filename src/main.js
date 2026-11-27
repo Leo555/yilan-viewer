@@ -121,15 +121,20 @@ function removeGroup(id) {
   if (!removed.length) return;
   if (id === 'mine') clearSaved(); // 一并清掉浏览器里保存的文件
   const activeRemoved = removed.some((f) => f.id === state.activeId);
-  afterRemove(activeRemoved, activeRemoved ? state.files.find((f) => !f.example) : null);
+  // 整组都删除了：没有同组文件可接着看，当前文件若被删就回首页
+  afterRemove(activeRemoved, null);
   toast(`已移除 ${removed.length} 个${id === 'example' ? '示例' : '文件'}`);
 }
 
 function removeFile(id) {
   const i = state.files.findIndex((f) => f.id === id);
   if (i < 0) return;
+  const example = !!state.files[i].example;
   removeFiles((f) => f.id === id);
-  afterRemove(state.activeId === id, state.files[i] || state.files[i - 1]);
+  // 只在同一分组里找相邻文件：删完「我的文件」不该自动跳到内置示例
+  const same = (f) => !!f.example === example;
+  const next = state.files.slice(i).find(same) || state.files.slice(0, i).reverse().find(same) || null;
+  afterRemove(state.activeId === id, next);
 }
 
 /* ============================== 打开文件 ============================== */

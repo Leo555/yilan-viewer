@@ -3,6 +3,8 @@
  * 只保存用户自己的文件；内置示例按 URL 取，不占浏览器存储。
  * meta / data 分开存：启动时只读元数据（几十条小记录），文件内容点开时才取，不拖慢首屏。
  */
+import { state } from './state.js';
+
 const DB_NAME = 'yilan-files';
 const META = 'meta';
 const DATA = 'data';
@@ -79,7 +81,8 @@ export async function getSavedBlob(path) {
  * 超限淘汰最早保存的文件；太大或存储不可用时静默跳过，返回成功保存的个数。
  */
 export async function saveFiles(files) {
-  const list = files.filter((f) => f && !f.example && !f.saved).slice(0, MAX_COUNT);
+  const live = new Set(state.files); // 只保存此刻仍在「我的文件」里的对象
+  const list = files.filter((f) => f && live.has(f) && !f.example && !f.saved).slice(0, MAX_COUNT);
   if (!list.length || unavailable) return 0;
   const blobs = [];
   for (const f of list) {
@@ -114,7 +117,9 @@ export async function saveFiles(files) {
       total -= m.size;
     }
     const keep = new Set(all.map((m) => m.path));
-    const writes = blobs.filter(({ file }) => keep.has(file.path));
+    // getBlob / 打开数据库期间用户可能已经删除或清空了文件：写事务前再确认一次
+    const liveNow = new Set(state.files);
+    const writes = blobs.filter(({ file }) => keep.has(file.path) && liveNow.has(file));
     if (!writes.length) return 0;
     await runTx(db, [META, DATA], 'readwrite', (t) => {
       const ms = t.objectStore(META);
