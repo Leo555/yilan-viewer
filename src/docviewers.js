@@ -861,6 +861,13 @@ async function renderCert(host, src, ctx) {
   return { searchable: true };
 }
 
+/* ============================== OFD（国产版式文档） ============================== */
+/** .ofd 是 zip 包，解析与渲染代码按需加载，不进入首屏 */
+async function renderOfd(host, src, ctx) {
+  const mod = await import('./views/ofd.js');
+  return mod.renderOfd(host, src, ctx);
+}
+
 /* ============================== 入口 ============================== */
 const RENDERERS = {
   pdf: renderPdf,
@@ -874,6 +881,7 @@ const RENDERERS = {
   comic: renderComic,
   iwork: renderIwork,
   cert: renderCert,
+  ofd: renderOfd,
 };
 
 /** 音视频直接用 Blob 播放，其余类型需要读出完整字节 */

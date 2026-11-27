@@ -74,45 +74,62 @@ export async function getSavedBlob(path) {
   return blob;
 }
 
-/** 保存（同路径覆盖）。超限淘汰最早保存的文件；太大或存储不可用时静默跳过 */
-export async function saveFile(file) {
-  if (file.example || file.saved || unavailable) return false;
-  let blob;
-  try { blob = await file.getBlob(); } catch { return false; }
-  if (!(blob instanceof Blob) || blob.size > MAX_FILE) return false;
+/**
+ * 保存一批本机文件（同路径覆盖）：一次读元数据、一个事务写完，避免导入多个文件时反复读写。
+ * 超限淘汰最早保存的文件；太大或存储不可用时静默跳过，返回成功保存的个数。
+ */
+export async function saveFiles(files) {
+  const list = files.filter((f) => f && !f.example && !f.saved).slice(0, MAX_COUNT);
+  if (!list.length || unavailable) return 0;
+  const blobs = [];
+  for (const f of list) {
+    try {
+      const b = await f.getBlob();
+      if (b instanceof Blob && b.size <= MAX_FILE) blobs.push({ file: f, blob: b });
+    } catch { /* 读不到的跳过 */ }
+  }
+  if (!blobs.length) return 0;
   try {
     const db = await openDB();
     const metas = await listSaved();
-    const others = metas.filter((m) => m.path !== file.path);
-    let total = blob.size + others.reduce((s, m) => s + m.size, 0);
-    let count = others.length + 1;
+    const now = Date.now();
+    const byPath = new Map(metas.map((m) => [m.path, m]));
+    blobs.forEach(({ file, blob }, i) => {
+      byPath.set(file.path, {
+        path: file.path,
+        size: blob.size,
+        mtime: file.mtime || now,
+        savedAt: now + i,
+        lang: file.lang || null,
+        pasted: !!file.pasted,
+      });
+    });
+    const all = [...byPath.values()].sort((a, b) => (a.savedAt || 0) - (b.savedAt || 0));
+    let total = all.reduce((s, m) => s + m.size, 0);
     const victims = [];
-    for (const m of others) { // others 已按 savedAt 升序，最旧的先淘汰
-      if (count <= MAX_COUNT && total <= MAX_TOTAL) break;
+    while (all.length > MAX_COUNT || total > MAX_TOTAL) {
+      const m = all.shift();
+      if (!m) break;
       victims.push(m.path);
       total -= m.size;
-      count--;
     }
-    const meta = {
-      path: file.path,
-      size: blob.size,
-      mtime: file.mtime || Date.now(),
-      savedAt: Date.now(),
-      lang: file.lang || null,
-      pasted: !!file.pasted,
-    };
+    const keep = new Set(all.map((m) => m.path));
+    const writes = blobs.filter(({ file }) => keep.has(file.path));
+    if (!writes.length) return 0;
     await runTx(db, [META, DATA], 'readwrite', (t) => {
       const ms = t.objectStore(META);
       const ds = t.objectStore(DATA);
       for (const p of victims) { ms.delete(p); ds.delete(p); }
-      ms.put(meta);
-      ds.put(blob, file.path);
+      for (const { file, blob } of writes) {
+        ms.put(byPath.get(file.path));
+        ds.put(blob, file.path);
+      }
     });
-    file.saved = true;
-    return true;
+    for (const { file } of writes) file.saved = true;
+    return writes.length;
   } catch (err) {
     console.warn('保存到浏览器失败', err);
-    return false;
+    return 0;
   }
 }
 

@@ -15,7 +15,7 @@ const BADGE = {
 const DOC_BADGE = {
   pdf: ['PDF', '#d93025'], epub: ['EPB', '#7cb342'], docx: ['DOC', '#2b579a'], sheet: ['XLS', '#217346'],
   pptx: ['PPT', '#d24726'], audio: ['♪', '#e8590c'], video: ['▶', '#ae3ec9'], font: ['Ff', '#495057'],
-  comic: ['CBZ', '#c2255c'], iwork: ['iW', '#1c7ed6'], cert: ['🔐', '#5c7cfa'],
+  comic: ['CBZ', '#c2255c'], iwork: ['iW', '#1c7ed6'], cert: ['🔐', '#5c7cfa'], ofd: ['OFD', '#e8590c'],
   notebook: ['NB', '#f37626'], email: ['✉', '#1971c2'], calendar: ['📅', '#e03131'], contacts: ['👤', '#2f9e44'], pem: ['🔐', '#5c7cfa'],
   archive: ['ZIP', '#7950f2'],
 };

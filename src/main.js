@@ -16,7 +16,7 @@ import { renderImage, renderMarkdown, renderCsv, renderHtmlFrame, renderJsonTree
 import { canFind, openFind, closeFind, runFind, findOpen, bindFind } from './find.js';
 import { syncRoute, applyRoute } from './route.js';
 import { loadHljs } from './libs.js';
-import { listSaved, saveFile, clearSaved } from './store.js';
+import { listSaved, saveFiles, clearSaved } from './store.js';
 
 let docMod = null;
 const loadDocViewers = () => (docMod ||= import('./docviewers.js').catch((e) => { docMod = null; throw e; }));
@@ -102,6 +102,8 @@ async function afterAdd(added, { expand = true, quiet = false } = {}) {
   // 一次添加多个文件时优先打开 README / index 等；只添加一个就打开它
   const first = added.length === 1 ? added[0] : pickFirst(added);
   if (first) await openFile(first.id);
+  // 导入的本机文件全部存进浏览器，不只是自动打开的第一个（示例不占存储）
+  await saveFiles(added);
   if (added.length > 1 && !quiet) toast(`已添加 ${added.length} 个文件`);
 }
 
@@ -200,15 +202,8 @@ async function openFile(id, opts = {}) {
   if (token !== state.openToken) return;
   if (opts.line && cur.mode === 'code') jumpToLine(opts.line);
   syncRoute();
-  await persistOpened(file); // 本机文件存进浏览器，刷新后仍在「我的文件」里
   // 新内容渲染完后再把侧边栏滚到当前文件（此时布局已经算好，不会额外卡顿）
   requestAnimationFrame(() => { if (state.activeId === id) revealInTree(file, { expand: false }); });
-}
-
-/** 打开过的本机文件写进 IndexedDB；示例不占存储，失败不影响当前预览 */
-async function persistOpened(file) {
-  if (file.example) return;
-  try { await saveFile(file); } catch (err) { console.warn('无法保存到浏览器', err); }
 }
 
 /* ============================== 工具栏 / 状态栏 ============================== */

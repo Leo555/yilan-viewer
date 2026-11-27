@@ -161,6 +161,7 @@ const DOC_EXT = {
   font: ['ttf', 'otf', 'ttc', 'otc', 'woff', 'woff2', 'eot'],
   comic: ['cbz'],
   iwork: ['pages', 'key', 'numbers'],
+  ofd: ['ofd'],
   // .crt / .cer 可能是 PEM 文本也可能是二进制 DER；.key 可能是 Keynote 也可能是 PEM 私钥：打开时按内容判断
   cert: ['der', 'crt', 'cer'],
 };
@@ -168,7 +169,7 @@ const docByExt = new Map(Object.entries(DOC_EXT).flatMap(([k, list]) => list.map
 export const DOC_KINDS = new Set(Object.keys(DOC_EXT));
 export const DOC_NAMES = {
   pdf: 'PDF', epub: 'EPUB', docx: 'Word 文档', sheet: '电子表格', pptx: '演示文稿', audio: '音频', video: '视频', font: '字体',
-  comic: '漫画', iwork: 'iWork 文档', cert: '证书',
+  comic: '漫画', iwork: 'iWork 文档', cert: '证书', ofd: 'OFD 版式文档',
 };
 
 /** 文件除了源码外还支持的预览方式 */

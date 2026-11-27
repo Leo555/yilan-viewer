@@ -9,6 +9,7 @@
 | 类别 | 格式 | 说明 |
 | --- | --- | --- |
 | PDF | `.pdf` | pdf.js 渲染，可选中文字；支持查找、缩放、密码保护的文件，链接和批注可点击 |
+| OFD | `.ofd` | 国产版式文档（GB/T 33190）：按页还原文字、图片与基础图形，可翻页 / 缩放；不还原嵌入字体、复杂图形与签章验签 |
 | 电子书 | `.epub` | 分页阅读，宽屏时双页显示；有目录跳转，支持方向键翻页、调字号、深色主题 |
 | Word | `.docx` | 转成 HTML 显示，保留标题、列表、表格、图片、粗体 / 斜体等 |
 | 表格 | `.xlsx` `.xls` `.xlsb` `.ods` | 多工作表切换，列号 A/B/C，表头固定 |
@@ -105,6 +106,7 @@ src/
   views/code.js       源码视图
   views/preview.js    图片、Markdown、CSV、HTML / SVG、JSON 树
   views/structured.js Jupyter、邮件、日历、联系人、证书（PEM）
+  views/ofd.js        OFD 解析与 SVG 分页预览（按需加载）
 ```
 
 ### 升级依赖 / 增加语言
